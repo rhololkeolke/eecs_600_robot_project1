@@ -72,7 +72,7 @@ void MultiSenseSL::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf)
 
   ROS_DEBUG("Loading Custom MultiSense ROS node.");
 
-  gzerr << "Links\n";
+  /*  gzerr << "Links\n";
   const physics::Link_V links = this->atlasModel->GetLinks();
   for(physics::Link_V::const_iterator link = links.begin(); link != links.end(); link++)
   {
@@ -84,7 +84,7 @@ void MultiSenseSL::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf)
   for(physics::Joint_V::const_iterator joint = joints.begin(); joint != joints.end(); joint++)
   {
 	  gzerr << (*joint)->GetName() << "\n";
-  }
+	  }*/
   
 
   this->lastTime = this->world->GetSimTime();
