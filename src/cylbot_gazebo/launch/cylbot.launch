@@ -1,0 +1,14 @@
+<launch>
+  <!-- Load the URDF into the robot_description param. This is required for RVIZ and other tools to function -->
+  <param name="robot_description" command="$(find xacro)/xacro.py '$(find cylbot_description)/robots/cylbot.urdf.xacro'" />
+
+  <!-- We resume the logic in empty_world.launch, changing only the name of the world to be launched -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find cylbot_gazebo)/worlds/cylbot.world"/>
+    <!-- more default parameters can be changed here -->
+  </include>
+
+  <include file="$(find cylbot_gazebo)/launch/multisense_sl.launch"/>
+
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -model cylbot" />
+</launch>
