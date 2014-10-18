@@ -1,5 +1,31 @@
 <?xml version="1.0"?>
 <robot>
+  <gazebo>
+	<plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+	  <robotNamespace>/cylbot</robotNamespace>
+	</plugin>
+  </gazebo>
+
+  <transmission name="head_pan_tran">
+	<type>transmission_interface/SimpleTransmission</type>
+	<joint name="head_pan">
+	  <hardwareInterface>EffortJointInterface</hardwareInterface>
+	</joint>
+	<actuator name="head_pan_motor">
+	  <mechanicalReduction>1</mechanicalReduction>
+	</actuator>
+  </transmission>
+
+  <transmission name="head_tilt_tran">
+  	<type>transmission_interface/SimpleTransmission</type>
+  	<joint name="head_tilt">
+  	  <hardwareInterface>EffortJointInterface</hardwareInterface>
+  	</joint>
+  	<actuator name="head_tilt_motor">
+  	  <mechanicalReduction>1</mechanicalReduction>
+  	</actuator>
+  </transmission>
+
   <gazebo reference="front_caster">
 	<mu1>0.0</mu1>
 	<mu2>0.0</mu2>

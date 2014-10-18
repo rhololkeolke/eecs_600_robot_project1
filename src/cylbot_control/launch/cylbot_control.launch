@@ -1,0 +1,12 @@
+<launch>
+  <rosparam file="$(find cylbot_control)/config/cylbot_control.yaml" command="load"/>
+  
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+		output="screen" ns="/cylbot" args="head_pan_position_controller head_tilt_position_controller joint_state_controller"/>
+
+  <node name="head_robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"
+		respawn="false" output="screen">
+	<remap from="/joint_states" to="/cylbot/joint_states" />
+  </node>
+
+</launch>

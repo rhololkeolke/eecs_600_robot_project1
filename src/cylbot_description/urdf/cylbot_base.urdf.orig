@@ -151,17 +151,28 @@
 	<child link="head_tilt_link"/>
 	<axis xyz="0 0 1"/>
 	<origin xyz="0 0 .127" rpy="0 0 1.57075"/>
-	<dynamics damping="0.05"/>
-	<limit effort=".5" velocity="3.14"/>
+	<dynamics damping="0.7"/>
+	<limit effort="10.0" velocity="5.0" />
   </joint>
 
   <joint name="head_tilt" type="continuous">
+<<<<<<< Updated upstream
 	<parent link="head_tilt_link"/>
+=======
+    <parent link="head_tilt_link"/>
+    <child link="head_offset_link"/>
+	<axis xyz="1 0 0"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+	<dynamics damping="0.7"/>
+	<limit effort="10.0" velocity="5.0"/>
+  </joint>
+
+  <joint name="head_offset" type="fixed">
+	<parent link="head_offset_link"/>
+>>>>>>> Stashed changes
 	<child link="head"/>
 	<origin xyz="0 0 0" rpy="0 0 0"/>
 	<axis xyz="0 1 0"/>
-	<dynamics damping="0.8"/>
-	<limit effort="20" velocity="3.14"/>
   </joint>
 
 </robot>

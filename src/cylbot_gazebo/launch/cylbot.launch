@@ -13,7 +13,9 @@
 
   <include file="$(find cylbot_gazebo)/launch/multisense_sl.launch"/>
 
-  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+  <include file="$(find cylbot_control)/launch/cylbot_control.launch"/>
+
+  <!--<node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />-->
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
 
   <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -model cylbot -z .4" />
