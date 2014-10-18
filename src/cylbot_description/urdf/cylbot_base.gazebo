@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<robot>
+  <gazebo reference="front_caster">
+	<mu1>0.0</mu1>
+	<mu2>0.0</mu2>
+	<material>Gazebo/Blue</material>
+  </gazebo>
+
+  <gazebo reference="back_caster">
+	<mu1>0.0</mu1>
+	<mu2>0.0</mu2>
+	<material>Gazebo/Blue</material>
+  </gazebo>
+
+  <gazebo reference="left_wheel">
+	<mu1>1.0</mu1>
+	<mu2>1.0</mu2>
+	<material>Gazebo/Black</material>
+  </gazebo>
+
+  <gazebo reference="right_wheel">
+	<mu1>1.0</mu1>
+	<mu2>1.0</mu2>
+	<material>Gazebo/Black</material>
+  </gazebo>
+
+  <gazebo reference="base_link">
+	<material>Gazebo/Blue</material>
+  </gazebo>
+
+  <gazebo reference="head_pole">
+	<material>Gazebo/Purple</material>
+  </gazebo>
+
+</robot>

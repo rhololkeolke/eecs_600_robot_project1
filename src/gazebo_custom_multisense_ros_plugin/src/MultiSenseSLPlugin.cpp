@@ -72,6 +72,21 @@ void MultiSenseSL::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf)
 
   ROS_DEBUG("Loading Custom MultiSense ROS node.");
 
+  gzerr << "Links\n";
+  const physics::Link_V links = this->atlasModel->GetLinks();
+  for(physics::Link_V::const_iterator link = links.begin(); link != links.end(); link++)
+  {
+	  gzerr << (*link)->GetName() << "\n";
+  }
+
+  gzerr << "Joints\n";
+  const physics::Joint_V joints = this->atlasModel->GetJoints();
+  for(physics::Joint_V::const_iterator joint = joints.begin(); joint != joints.end(); joint++)
+  {
+	  gzerr << (*joint)->GetName() << "\n";
+  }
+  
+
   this->lastTime = this->world->GetSimTime();
 
   // Get imu link

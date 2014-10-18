@@ -1,10 +1,6 @@
 <launch>
   <param name="/atlas_version" value="3" type="int"/>
 
-  <!-- joint states to tf -->
-  <node pkg="robot_state_publisher" type="state_publisher" name="multisense_sl_robot_state_publisher">
-    <param name="publish_frequency" type="double" value="50.0" />
-  </node>
   <!--  <node pkg="tf" type="static_transform_publisher" name="hokuyo_link_tf" args="0 0 0 0 0 0 head hokuyo_link 50"/>-->
 
   <!-- TF Buffer Server -->

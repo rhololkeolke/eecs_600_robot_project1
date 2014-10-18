@@ -1,31 +1,9 @@
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="atlas">
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="cylbot">
+  <!-- Gazebo-customization elements -->
+  <xacro:include filename="$(find cylbot_description)/urdf/cylbot_base.gazebo"/>
+
   <xacro:include filename="$(find cylbot_description)/urdf/cylbot_base.urdf" />
   <xacro:include filename="$(find cylbot_description)/urdf/multisense_sl_v3.urdf" />
 
-  <link name="head_tilt_link">
-  </link>
-
-  <link name="head_offset_link">
-  </link>
-
-  <joint name="head_pan" type="continuous">
-	<parent link="head_pole"/>
-	<child link="head_tilt_link"/>
-	<axis xyz="0 0 1"/>
-	<origin xyz="0 0 0" rpy="0 0 0"/>
-  </joint>
-
-  <joint name="head_tilt" type="continuous">
-    <parent link="head_tilt_link"/>
-    <child link="head_offset_link"/>
-	<axis xyz="1 0 0"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-  </joint>
-
-  <joint name="head_offset" type="fixed">
-	<parent link="head_offset_link"/>
-	<child link="head"/>
-	<origin xyz="0 .1 .1" rpy="0 0 1.57075"/>
-  </joint>
-
+  <!--<link name="head"/>-->
 </robot>
