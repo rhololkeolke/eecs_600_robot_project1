@@ -17,6 +17,7 @@ CATKIN_DEPENDS gazebo_plugins
 )
 
 find_package(gazebo REQUIRED)
+find_package(Boost REQUIRED)
 
 ###########
 ## Build ##
@@ -34,10 +35,14 @@ link_directories(
 add_library(HelloWorldPlugin src/hello_world.cpp)
 target_link_libraries(HelloWorldPlugin ${catkin_LIBRARIES} ${GAZEBO_LIBRARIES})
 
+add_library(ModelPushPlugin src/model_push.cpp)
+target_link_libraries(ModelPushPlugin ${catkin_LIBRARIES} ${GAZEBO_LIBRARIES} ${Boost_LIBRARIES})
+
 #############
 ## Install ##
 #############
 install(TARGETS
   HelloWorldPlugin
+  ModelPushPlugin
   DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}/${PROJECT_NAME}/plugins/
 )
