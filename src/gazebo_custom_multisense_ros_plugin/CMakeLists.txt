@@ -7,6 +7,10 @@ project(gazebo_custom_multisense_ros_plugin)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   gazebo_ros
+  sensor_msgs
+  std_msgs
+  geometry_msgs
+  std_srvs
 )
 
 catkin_package(
@@ -17,13 +21,14 @@ CATKIN_DEPENDS gazebo_plugins
 )
 
 find_package(gazebo REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS thread)
 
 ###########
 ## Build ##
 ###########
 
 include_directories(
+  include
   ${catkin_INCLUDE_DIRS}
   ${GAZEBO_INCLUDE_DIRS}
 )
@@ -38,11 +43,15 @@ target_link_libraries(HelloWorldPlugin ${catkin_LIBRARIES} ${GAZEBO_LIBRARIES})
 add_library(ModelPushPlugin src/model_push.cpp)
 target_link_libraries(ModelPushPlugin ${catkin_LIBRARIES} ${GAZEBO_LIBRARIES} ${Boost_LIBRARIES})
 
+add_library(CustomMultiSenseSLPlugin src/MultiSenseSLPlugin.cpp)
+target_link_libraries(CustomMultiSenseSLPlugin ${catkin_LIBRARIES} ${GAZEBO_LIBRARIES} ${Boost_LIBRARIES})
+
 #############
 ## Install ##
 #############
 install(TARGETS
   HelloWorldPlugin
   ModelPushPlugin
+  CustomMultiSenseSLPlugin
   DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}/${PROJECT_NAME}/plugins/
 )
