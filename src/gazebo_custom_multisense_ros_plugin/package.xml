@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package>
+  <name>gazebo_custom_multisense_ros_plugin</name>
+  <version>0.0.0</version>
+  <description>Customized version of the Multisense plugin from the DRCSim project. Removing atlas specific code</description>
+
+  <maintainer email="digidevin@gmail.com">Devin Schwab</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>roscpp</build_depend>
+  <build_depend>gazebo_ros</build_depend>
+  <build_depend>gazebo_plugins</build_depend>
+
+  <run_depend>ros_cpp</run_depend>
+  <run_depend>gazebo_ros</run_depend>
+  <run_depend>gazebo_plugins</run_depend>
+</package>
