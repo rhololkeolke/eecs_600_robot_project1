@@ -41,6 +41,47 @@
 	<origin xyz="0 0 .4"/>
   </joint>
 
+  <link name="front_caster_holder">
+	<inertial>
+	  <mass value=".01"/>
+	  <inertia ixx="0.0004477824078" ixy="0.0" ixz="0.0" iyy="0.0004477824078" iyz="0.0" izz="0.0000066667356"/>
+	</inertial>
+  </link>
+
+  <link name="front_caster">
+  	<visual>
+  	  <geometry>
+		<cylinder length=".05" radius=".07"/>
+  	  </geometry>
+  	  <material name="black">
+  		<color rgba="0 0 0 1"/>
+  	  </material>
+  	</visual>
+  	<collision>
+  	  <geometry>
+		<cylinder length=".05" radius=".07"/>
+  	  </geometry>
+  	</collision>
+	<inertial>
+	  <mass value=".1837"/>
+	  <inertia ixx="0.0003781158333333334" ixy="0.0" ixz="0.0" iyy="0.0003781158333333334" iyz="0.0" izz="0.000450065"/>
+	</inertial>
+  </link>
+
+  <joint name="front_caster_z" type="continuous">
+  	<parent link="base_link"/>
+  	<child link="front_caster_holder"/>
+  	<origin xyz="0 .125 -.325"/>
+	<axis xyz="0 0 1"/>
+  </joint>
+
+  <joint name="front_caster_x" type="continuous">
+	<parent link="front_caster_holder"/>
+	<child link="front_caster"/>
+	<origin xyz="0 0 0" rpy="0 1.57075 0"/>
+	<axis xyz="1 0 0"/>
+  </joint>
+
   <link name="right_wheel">
 	<visual>
 	  <geometry>
@@ -64,8 +105,9 @@
   <joint name="right_wheel_joint" type="continuous">
 	<parent link="base_link"/>
 	<child link="right_wheel"/>
-	<origin xyz=".23 0 -.2" rpy="0 1.57075 0"/>
+	<origin xyz=".24 -.2 -.2" rpy="0 -1.57075 0"/>
 	<axis xyz="0 0 1"/>
+	<dynamics damping=".05"/>
   </joint>
 
   <link name="left_wheel">
@@ -91,53 +133,32 @@
   <joint name="left_wheel_joint" type="continuous">
 	<parent link="base_link"/>
 	<child link="left_wheel"/>
-	<origin xyz="-.23 0 -.2" rpy="0 1.57075 0"/>
+	<origin xyz="-.24 -.2 -.2" rpy="0 -1.57075 0"/>
 	<axis xyz="0 0 1"/>
+	<dynamics damping=".05"/>
   </joint>
 
-  <link name="front_caster">
-	<visual>
-	  <geometry>
-		<sphere radius=".075"/>
-	  </geometry>
-	  <material name="blue">
-		<color rgba="0 0 .8 1"/>
-	  </material>
-	</visual>
-	<collision>
-	  <geometry>
-		<sphere radius=".075"/>
-	  </geometry>
-	</collision>
-  </link>
+  <!-- <link name="back_caster"> -->
+  <!-- 	<visual> -->
+  <!-- 	  <geometry> -->
+  <!-- 		<sphere radius=".073"/> -->
+  <!-- 	  </geometry> -->
+  <!-- 	  <material name="blue"> -->
+  <!-- 		<color rgba="0 0 .8 1"/> -->
+  <!-- 	  </material> -->
+  <!-- 	</visual> -->
+  <!-- 	<collision> -->
+  <!-- 	  <geometry> -->
+  <!-- 		<sphere radius=".075"/> -->
+  <!-- 	  </geometry> -->
+  <!-- 	</collision> -->
+  <!-- </link> -->
 
-  <joint name="base_front_caster" type="fixed">
-	<parent link="base_link"/>
-	<child link="front_caster"/>
-	<origin xyz="0 .125 -.325"/>
-  </joint>
-
-  <link name="back_caster">
-	<visual>
-	  <geometry>
-		<sphere radius=".075"/>
-	  </geometry>
-	  <material name="blue">
-		<color rgba="0 0 .8 1"/>
-	  </material>
-	</visual>
-	<collision>
-	  <geometry>
-		<sphere radius=".075"/>
-	  </geometry>
-	</collision>
-  </link>
-
-  <joint name="base_back_caster" type="fixed">
-	<parent link="base_link"/>
-	<child link="back_caster"/>
-	<origin xyz="0 -.125 -.325"/>
-  </joint>
+  <!-- <joint name="base_back_caster" type="fixed"> -->
+  <!-- 	<parent link="base_link"/> -->
+  <!-- 	<child link="back_caster"/> -->
+  <!-- 	<origin xyz="0 -.125 -.325"/> -->
+  <!-- </joint> -->
 
   <link name="head_tilt_link">
 	<inertial>
@@ -163,5 +184,6 @@
 	<dynamics damping="0.8"/>
 	<limit effort="20" velocity="3.14"/>
   </joint>
+
 
 </robot>

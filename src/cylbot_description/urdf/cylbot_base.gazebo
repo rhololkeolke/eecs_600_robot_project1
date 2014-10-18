@@ -29,13 +29,7 @@
   <gazebo reference="front_caster">
 	<mu1>0.0</mu1>
 	<mu2>0.0</mu2>
-	<material>Gazebo/Blue</material>
-  </gazebo>
-
-  <gazebo reference="back_caster">
-	<mu1>0.0</mu1>
-	<mu2>0.0</mu2>
-	<material>Gazebo/Blue</material>
+	<material>Gazebo/Black</material>
   </gazebo>
 
   <gazebo reference="left_wheel">
@@ -66,10 +60,10 @@
 	  <updateRate>1000</updateRate>
 	  <leftJoint>left_wheel_joint</leftJoint>
 	  <rightJoint>right_wheel_joint</rightJoint>
-	  <wheelSeparation>0.46</wheelSeparation>
+	  <wheelSeparation>0.48</wheelSeparation>
 	  <wheelDiameter>0.4</wheelDiameter>
 	  <wheelTorque>20</wheelTorque>
-	  <commandTopic>cmd_vel</commandTopic>
+	  <commandTopic>cylbot/cmd_vel</commandTopic>
 	  <odometryTopic>true_odom</odometryTopic>
 	  <odometryFrame>true_odom</odometryFrame>
 	  <robotBaseFrame>base_link</robotBaseFrame>
