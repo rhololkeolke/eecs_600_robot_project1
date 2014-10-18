@@ -1,0 +1,8 @@
+# Catkin
+build
+devel
+install
+
+# Emacs
+~.
+\#*
