@@ -1,0 +1,15 @@
+<launch>
+  <arg name="paused" default="false"/>
+  <arg name="rviz" default="false"/>
+  <arg name="rqt" default="false"/>
+
+  <include file="$(find cylbot_gazebo)/launch/cylbot.launch">
+	<arg name="paused" value="$(arg paused)"/>
+	<arg name="rviz" value="$(arg rviz)"/>
+	<arg name="rqt" value="$(arg rqt)"/>
+  </include>
+
+  <node name="xbox_joy" pkg="joy" type="joy_node"/>
+  <node name="xbox_teleop" pkg="cylbot_teleop" type="xbox_teleop"/>
+
+</launch>
