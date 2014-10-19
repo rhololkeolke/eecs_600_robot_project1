@@ -10,6 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
 )
 
+find_package(Boost REQUIRED COMPONENTS thread)
+
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -35,7 +37,7 @@ include_directories(
 )
 
 add_executable(xbox_teleop src/xbox_teleop.cpp)
-target_link_libraries(xbox_teleop ${catkin_LIBRARIES})
+target_link_libraries(xbox_teleop ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
 #############
 ## Install ##
