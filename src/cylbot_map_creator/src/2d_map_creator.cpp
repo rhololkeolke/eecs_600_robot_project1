@@ -5,6 +5,7 @@
 #include <pcl_ros/point_cloud.h>
 #include <tf/transform_listener.h>
 #include <pcl_ros/transforms.h>
+#include <cmath>
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloudXYZ;
 
@@ -13,6 +14,58 @@ ros::Publisher map_pub;
 tf::TransformListener* tf_listener;
 
 int x_origin, y_origin;
+
+inline int round (const float a) { return int (a + 0.5); }
+
+void setCellOccupancy(int x, int y, int value)
+{
+	// only include this point if it falls within the map grid
+	if(x < nav_map.info.width && x >= 0 &&
+	   y < nav_map.info.height && y >= 0)
+	{
+		nav_map.data[y*nav_map.info.width + x] = value;
+	}
+}
+
+void setCellOccupancy(const float x, const float y, int value)
+{
+	int x_coord = (int)(x/nav_map.info.resolution) + x_origin;
+	int y_coord = (int)(y/nav_map.info.resolution) + y_origin;
+
+	setCellOccupancy(x_coord, y_coord, value);
+}
+
+void beamDDA(const tf::Vector3& beamStart, const tf::Vector3& beamEnd)
+{
+	int dx = (int)((beamEnd.getX() - beamStart.getX())/nav_map.info.resolution);
+	int dy = (int)((beamEnd.getY() - beamStart.getY())/nav_map.info.resolution);
+	int steps;
+
+	float xIncrement, yIncrement;
+	float x = beamStart.getX()/nav_map.info.resolution;
+	float y = beamStart.getY()/nav_map.info.resolution;
+
+	if(fabs(dx) > fabs(dy))
+		steps = fabs(dx);
+	else
+		steps = fabs(dy);
+	xIncrement = ((float)dx)/((float)steps);
+	yIncrement = ((float)dy)/((float)steps);
+
+/*	ROS_INFO("%3.3f, %3.3f, %3.3f, %3.3f, %d, %d, %d, %3.3f, %3.3f",
+			 beamStart.getX(), beamStart.getY(),
+			 beamEnd.getX(), beamEnd.getY(),
+			 dx, dy, steps,
+			 xIncrement, yIncrement);*/
+
+	setCellOccupancy(x, y, 0);
+	for(int k=0; k<steps; k++)
+	{
+		x += xIncrement;
+		y += yIncrement;
+		setCellOccupancy(round(x)+x_origin, round(y)+y_origin, 0);
+	}
+}
 
 void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& ros_cloud)
 {
@@ -27,6 +80,11 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& ros_cloud)
 		return; // if a transform isn't found within one second give up
 	}
 	pcl_ros::transformPointCloud("/map", *ros_cloud, map_ros_cloud, *tf_listener);
+	// get the start point of the laser beam
+	tf::StampedTransform laser_transform;
+	tf_listener->lookupTransform("/map", "head_hokuyo_frame", ros_cloud->header.stamp, laser_transform);
+	tf::Vector3 beam_start = laser_transform.getOrigin();
+	beam_start.setZ(0);
 	
 	// convert to the PCL format
 	PointCloudXYZ pcl_cloud;
@@ -38,19 +96,13 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& ros_cloud)
 	{
 		if(point->z > 1.2 || point->z < .8)
 			continue; // ignore points outside of the scan plane
-		
-		// project the points orthogonally down and bin the x,y coordinates
-		int x_coord = (int)(point->x/nav_map.info.resolution) + x_origin;
-		int y_coord = (int)(point->y/nav_map.info.resolution) + y_origin;
 
-		// only include this point if it falls within the map grid
-		if(x_coord < nav_map.info.width && x_coord >= 0 &&
-		   y_coord < nav_map.info.height && y_coord >= 0)
-		{
-			// this will have to be smarter, but as a first pass
-			// just add this to the map as 100% certain occupied
-			nav_map.data[y_coord*nav_map.info.width + x_coord] = 100;
-		}
+		// get the vector in the map plane
+		tf::Vector3 beam_end(point->x, point->y, 0);
+
+		beamDDA(beam_start, beam_end);
+		
+		setCellOccupancy(point->x, point->y, 100);		
 	}
 	
 	nav_map.header.stamp = ros::Time::now();
