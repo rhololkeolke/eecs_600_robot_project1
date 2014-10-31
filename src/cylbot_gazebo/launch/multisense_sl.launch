@@ -14,4 +14,7 @@
     <param name="approximate_sync" type="bool" value="false"/>
   </node>
 
+  <!-- laser scan to point cloud -->
+  <node name="hokuyo_laser_to_pointcloud" pkg="cylbot_description" type="hokuyo_laser_to_pointcloud"/>
+
 </launch>
