@@ -37,5 +37,6 @@
 
   <group if="$(arg no_spinning)">
 	<node name="tilt_pub" pkg="rostopic" type="rostopic" args="pub /cylbot/head_tilt_position_controller/command std_msgs/Float64 '{data: 0.0}'"/>
+	<node name="spin_pub" pkg="rostopic" type="rostopic" args="pub /multisense/set_spindle_speed std_msgs/Float64 '{data: 0.0}'"/>
   </group>
 </launch>

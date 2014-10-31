@@ -407,7 +407,7 @@ bool MultiSenseSL::SetSpindleState(std_srvs::Empty::Request &req,
 ////////////////////////////////////////////////////////////////////////////////
 void MultiSenseSL::SetSpindleSpeed(const std_msgs::Float64::ConstPtr &_msg)
 {
-	ROS_INFO("Setting the spindle speed to %3.3f", _msg->data);
+	ROS_DEBUG("Setting the spindle speed to %3.3f", _msg->data);
   this->spindleSpeed = static_cast<double>(_msg->data);
   if (this->spindleSpeed > this->spindleMaxRPM * 2.0*M_PI / 60.0)
     this->spindleSpeed = this->spindleMaxRPM * 2.0*M_PI / 60.0;
