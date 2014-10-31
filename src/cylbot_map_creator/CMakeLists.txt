@@ -8,6 +8,9 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   roscpp
   sensor_msgs
+  pcl_conversions
+  pcl_ros
+  tf
 )
 
 ###################################
@@ -36,6 +39,9 @@ include_directories(
 
 add_executable(test_map_publisher src/test_map_publisher.cpp)
 target_link_libraries(test_map_publisher ${catkin_LIBRARIES})
+
+add_executable(2d_map_creator src/2d_map_creator.cpp)
+target_link_libraries(2d_map_creator ${catkin_LIBRARIES})
 
 #############
 ## Install ##
