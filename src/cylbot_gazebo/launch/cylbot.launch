@@ -25,6 +25,9 @@
   <node name="caster_z_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 base_link front_caster_holder 50" />
   <node name="caster_holder" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 front_caster_holder front_caster 50" />
 
+  <!-- publish a static tf from the true_odom to the map -->
+  <node name="map_to_true_odom" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 map true_odom 50"/>
+
   <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -model cylbot -z .4" />
 
   <group if="$(arg rviz)">
