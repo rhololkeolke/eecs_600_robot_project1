@@ -8,11 +8,14 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_conversions
   pcl_ros
   gazebo_msgs
+  gazebo_ros
   geometry_msgs
+  visualization_msgs
 )
 find_package(cmake_modules REQUIRED)
 find_package(Eigen REQUIRED)
 find_package(Boost REQUIRED)
+find_package(gazebo REQUIRED)
 
 ###################################
 ## catkin specific configuration ##
@@ -26,7 +29,7 @@ find_package(Boost REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES multisense_sensor_model
-#  CATKIN_DEPENDS roscpp sensor_msgs
+#  CATKIN_DEPENDS gazebo_plugins
   DEPENDS eigen
 )
 
@@ -35,14 +38,22 @@ catkin_package(
 ###########
 
 include_directories(
+  ${GAZEBO_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
   ${Eigen_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
   include
 )
 
+link_directories(
+  ${GAZEBO_LIBRARY_DIRS}
+)
+
 add_executable(hokuyo_beam_params_em src/hokuyo_beam_params_em.cpp)
 target_link_libraries(hokuyo_beam_params_em ${catkin_LIBRARIES} ${Eigen_LIBRARIES} ${Boost_LIBRARIES})
+
+add_library(BoxInfoPublisher src/box_info_publisher.cpp)
+target_link_libraries(BoxInfoPublisher ${GAZEBO_LIBRARIES} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
 #############
 ## Install ##
@@ -53,4 +64,9 @@ install(TARGETS
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(TARGETS
+  BoxInfoPublisher
+  DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}/${PROJECT_NAME}/plugins/
 )

@@ -133,6 +133,8 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
+
+	  <plugin name="box_info_pub" filename="libBoxInfoPublisher.so"/>
     </model>
     <state world_name='default'>
       <sim_time>128 470000000</sim_time>
