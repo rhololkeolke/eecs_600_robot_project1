@@ -200,8 +200,8 @@ int main(int argc, char** argv)
 	}
 
 	// get the origin coordinates in the map grid
-	x_origin = (int)(nav_map.info.width/2.0);
-	y_origin = (int)(nav_map.info.height/2.0);
+	x_origin = (int)(nav_map.info.width*x_offset);
+	y_origin = (int)(nav_map.info.height*y_offset);
 
 	// now that the datastructure is initialized set up the ROS stuff
 	map_pub = nh.advertise<nav_msgs::OccupancyGrid>("/map", 1, true);
