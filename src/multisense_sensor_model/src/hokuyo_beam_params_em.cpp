@@ -89,7 +89,9 @@ int main(int argc, char** argv)
 	tf_listener.reset(new tf::TransformListener());
 
 	ros::NodeHandle priv_nh("~");
+	std::string output_file = "~/sensor_params.yaml";
 	priv_nh.getParam("num_scans_to_collect", num_scans_to_collect);
+	priv_nh.getParam("output_file", output_file);
 
 	ROS_INFO("Collecting %d scans", num_scans_to_collect);
 	
@@ -113,6 +115,9 @@ int main(int argc, char** argv)
 	IntrinsicParams params = learnIntrinsicParams(laser_scans, .01, 1.0);
 
 	printIntrinsicParams(params);
+
+	ROS_INFO("Saving to %s", output_file.c_str());
+	writeIntrinsicParamsToFile(output_file, params);
 }
 
 IntrinsicParams learnIntrinsicParams(const ScanDataVector laser_scans,

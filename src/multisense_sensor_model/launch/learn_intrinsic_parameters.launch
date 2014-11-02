@@ -9,6 +9,7 @@
   <arg name="static_pan" default="true"/>
   <arg name="pan_angle" default="0.0"/>
   <arg name="num_scans_to_collect" default="10"/>
+  <arg name="output_file" default="~/sensor_params.yaml"/>
 
   <include file="$(find cylbot_gazebo)/launch/cylbot.launch">
 	<arg name="paused" value="$(arg paused)"/>
@@ -25,6 +26,7 @@
 
   <node name="hokuyo_beam_params_em" pkg="multisense_sensor_model" type="hokuyo_beam_params_em" output="screen" required="true">
 	<param name="num_scans_to_collect" value="$(arg num_scans_to_collect)" type="int"/>
+	<param name="output_file" value="$(arg output_file)" type="str"/>
   </node>
 
 </launch>

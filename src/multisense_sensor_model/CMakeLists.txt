@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(multisense_sensor_model)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
@@ -13,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 find_package(Boost REQUIRED)
 find_package(gazebo REQUIRED)
+find_package(YamlCpp REQUIRED)
 
 ###################################
 ## catkin specific configuration ##
@@ -25,7 +28,7 @@ find_package(gazebo REQUIRED)
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES multisense_sensor_model
+  LIBRARIES sensor_model
 #  CATKIN_DEPENDS gazebo_plugins
 #  DEPENDS eigen
 )
@@ -38,6 +41,7 @@ include_directories(
   ${GAZEBO_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
+  ${YAMLCPP_INCLUDE_DIR}
   include
 )
 
@@ -45,8 +49,11 @@ link_directories(
   ${GAZEBO_LIBRARY_DIRS}
 )
 
+add_library(sensor_model src/sensor_model.cpp)
+target_link_libraries(sensor_model ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${YAMLCPP_LIBRARY})
+
 add_executable(hokuyo_beam_params_em src/hokuyo_beam_params_em.cpp)
-target_link_libraries(hokuyo_beam_params_em ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(hokuyo_beam_params_em ${catkin_LIBRARIES} ${Boost_LIBRARIES} sensor_model)
 
 add_library(BoxInfoPublisher src/box_info_publisher.cpp)
 target_link_libraries(BoxInfoPublisher ${GAZEBO_LIBRARIES} ${catkin_LIBRARIES} ${Boost_LIBRARIES})

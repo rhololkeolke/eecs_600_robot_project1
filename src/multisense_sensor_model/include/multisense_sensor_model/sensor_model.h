@@ -5,6 +5,7 @@
 #include <boost/math/distributions/normal.hpp>
 #include <boost/math/distributions/uniform.hpp>
 #include <cmath>
+#include <string>
 
 namespace multisense_sensor_model
 {
@@ -59,12 +60,15 @@ namespace multisense_sensor_model
 
 				return boost::math::pdf(dist, sensor_value);
 			}
-	
+
 		double zhit, zshort, zmax, zrand;
 		double sigma_hit;
 		double lambda_short;
 		bool converged;
 	} IntrinsicParams;
 
+	void writeIntrinsicParamsToFile(const std::string& filename, const IntrinsicParams& params);
+	
+	void readIntrinsicParamsFromFile(const std::string& filename, IntrinsicParams* params);	
 }
 #endif
