@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <gazebo_msgs/ModelStates.h>
 #include <geometry_msgs/Pose.h>
+#include <visualization_msgs/Marker.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
 #include <tf/transform_listener.h>
@@ -26,12 +26,13 @@ typedef struct ScanData_ {
 
 boost::shared_ptr<tf::TransformListener> tf_listener;
 ros::Subscriber laser_sub;
-ros::Subscriber gazebo_model_sub;
+ros::Subscriber wall_info_sub;
 
 int num_scans_to_collect = 10;
 std::vector<boost::shared_ptr<ScanData> > laser_scans;
 
 geometry_msgs::Pose wall_pose;
+geometry_msgs::Vector3 wall_scale;
 
 IntrinsicParams learnIntrinsicParams(const std::vector<boost::shared_ptr<ScanData> > laser_scans);
 
@@ -86,30 +87,14 @@ void laserScanCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points)
 	}
 }
 
-void gazeboModelStateCallback(const gazebo_msgs::ModelStates::ConstPtr& model_states)
+void wallCallback(const visualization_msgs::Marker::ConstPtr& wall_info)
 {
-	int wall_index = -1;
-	for(int i = 0; i < model_states->name.size(); i++)
-	{
-		if(model_states->name[i].compare("unit_box_1") == 0)
-		{
-			wall_index = i;
-			break;
-		}
-	}
+	ROS_INFO("Got wall info");
+	ROS_INFO_STREAM(*wall_info);
+	wall_pose = wall_info->pose;
+	wall_scale = wall_info->scale;
 
-	if(wall_index == -1)
-	{
-		ROS_WARN("Could not find unit_box_1 in list of world models");
-		return;
-	}
-
-	ROS_INFO("Found wall_pose");
-	wall_pose = model_states->pose[wall_index];
-	ROS_INFO_STREAM(wall_pose);
-
-	// only need to get the pose once
-	gazebo_model_sub.shutdown();
+	wall_info_sub.shutdown();
 }
 
 int main(int argc, char** argv)
@@ -125,7 +110,7 @@ int main(int argc, char** argv)
 	ROS_INFO("Collecting %d scans", num_scans_to_collect);
 	
 	laser_sub = nh.subscribe<sensor_msgs::PointCloud2>("/laser/points", 10, &laserScanCallback);
-	gazebo_model_sub = nh.subscribe<gazebo_msgs::ModelStates>("/gazebo/model_states", 10, &gazeboModelStateCallback);
+	wall_info_sub = nh.subscribe<visualization_msgs::Marker>("/gazebo/unit_box_1/info", 10, &wallCallback);
 	
 	ros::Rate loop_rate(100);
 	while(ros::ok() && laser_scans.size() < num_scans_to_collect)

@@ -7,7 +7,6 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   pcl_conversions
   pcl_ros
-  gazebo_msgs
   gazebo_ros
   geometry_msgs
   visualization_msgs
