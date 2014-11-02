@@ -1,5 +1,5 @@
 #include <ros/ros.h>
-#include <multisense_sensor_model/sensor_model.h>
+#include "hokuyo_beam_params_em.h"
 #include <sensor_msgs/PointCloud2.h>
 
 #include <visualization_msgs/Marker.h>
@@ -115,9 +115,9 @@ int main(int argc, char** argv)
 	printIntrinsicParams(params);
 }
 
-IntrinsicParams multisense_sensor_model::learnIntrinsicParams(const ScanDataVector laser_scans,
-															  const double sigma_hit, const double lambda_short,
-															  const double epsilon, const int max_iterations)
+IntrinsicParams learnIntrinsicParams(const ScanDataVector laser_scans,
+									 const double sigma_hit, const double lambda_short,
+									 const double epsilon, const int max_iterations)
 {
 
 	IntrinsicParams old_params;
@@ -126,7 +126,6 @@ IntrinsicParams multisense_sensor_model::learnIntrinsicParams(const ScanDataVect
 	new_params.sigma_hit = sigma_hit;
 	new_params.lambda_short = lambda_short;
 
-	boost::math::uniform_distribution<> pRand(0.0, 30.0);
 	int iteration = 0;
 	do {
 		old_params = new_params;
@@ -149,28 +148,28 @@ IntrinsicParams multisense_sensor_model::learnIntrinsicParams(const ScanDataVect
 				if(mapDist == -1)
 					mapDist = 30.0;
 
-				boost::math::normal_distribution<> pHit(mapDist, old_params.sigma_hit);
-				boost::math::exponential_distribution<> pShort(old_params.lambda_short);
-
 				tf::Vector3 beam_vec = beam_end_vec - (*scan)->beam_start;
 				double beam_length = sqrt(beam_vec.getX()*beam_vec.getX() +
 										  beam_vec.getY()*beam_vec.getY() +
 										  beam_vec.getZ()*beam_vec.getZ());
 
-				double eta = 1.0/(boost::math::pdf(pHit, beam_length) + boost::math::pdf(pShort, beam_length) + boost::math::pdf(pRand, beam_length) + getPMax(beam_length));
+				double eta = 1.0/(old_params.pHit(beam_length, mapDist) +
+								  old_params.pShort(beam_length, mapDist) +
+								  old_params.pMax(beam_length) +
+								  old_params.pRand(beam_length));
 
 				// ROS_INFO("%3.3f, %3.3f -- %3.3f -- %3.3f, %3.3f, %3.3f, %3.3f", mapDist, beam_length, eta, e_hit, e_short, e_max, e_rand);
-				double ehit = eta*boost::math::pdf(pHit, beam_length);
+				double ehit = eta*old_params.pHit(beam_length, mapDist);
 				sigma_update_inner_sum += ehit*(beam_length - mapDist)*(beam_length - mapDist);
 				total_ehit += ehit;
 
-				double eshort = eta*boost::math::pdf(pShort, beam_length);
+				double eshort = eta*old_params.pShort(beam_length, mapDist);
 				lambda_update_denom += eshort*beam_length;
 				total_eshort += eshort;
 
-				double emax = eta*getPMax(beam_length);
+				double emax = eta*old_params.pMax(beam_length);
 				total_emax += emax;
-				double erand = eta*boost::math::pdf(pRand, beam_length);
+				double erand = eta*old_params.pRand(beam_length);
 				total_erand += erand;
 
 				Zcard++;
