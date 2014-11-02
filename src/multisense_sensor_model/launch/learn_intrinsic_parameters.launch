@@ -2,7 +2,12 @@
   <arg name="paused" default="false"/>
   <arg name="rviz" default="false"/>
   <arg name="rqt" default="false"/>
-  <arg name="no_spinning" default="false"/>
+  <arg name="static_spin" default="true"/>
+  <arg name="spin_rate" default="0.0"/>
+  <arg name="static_tilt" default="true"/>
+  <arg name="tilt_angle" default="0.0"/>
+  <arg name="static_pan" default="true"/>
+  <arg name="pan_angle" default="0.0"/>
   <arg name="num_scans_to_collect" default="10"/>
 
   <include file="$(find cylbot_gazebo)/launch/cylbot.launch">
@@ -10,7 +15,12 @@
 	<arg name="rviz" value="$(arg rviz)"/>
 	<arg name="rqt" value="$(arg rqt)"/>
 	<arg name="world_name" value="$(find multisense_sensor_model)/worlds/sensor_model_params.world"/>
-	<arg name="no_spinning" value="$(arg no_spinning)"/>
+	<arg name="static_spin" value="$(arg static_spin)"/>
+	<arg name="spin_rate" value="$(arg spin_rate)"/>
+	<arg name="static_tilt" value="$(arg static_tilt)"/>
+	<arg name="tilt_angle" value="$(arg tilt_angle)"/>
+	<arg name="static_pan" value="$(arg static_pan)"/>
+	<arg name="pan_angle" value="$(arg pan_angle)"/>
   </include>
 
   <node name="hokuyo_beam_params_em" pkg="multisense_sensor_model" type="hokuyo_beam_params_em" output="screen" required="true">
