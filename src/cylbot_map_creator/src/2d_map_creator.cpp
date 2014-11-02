@@ -98,13 +98,22 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& ros_cloud)
 		   ros_cloud->header.stamp,
 		   ros::Duration(1.0)))
 	{
-		ROS_INFO("Transform failure");
+		ROS_INFO("Transform from /map to /base_link failed");
 		return; // if a transform isn't found within one second give up
 	}
 	pcl_ros::transformPointCloud("/map", *ros_cloud, map_ros_cloud, *tf_listener);
 	// get the start point of the laser beam
 	tf::StampedTransform laser_transform;
-	tf_listener->lookupTransform("/map", "head_hokuyo_frame", ros_cloud->header.stamp, laser_transform);
+	if(!tf_listener->waitForTransform(
+		   "/map",
+		   "/head_hokuyo_frame",
+		   ros_cloud->header.stamp,
+		   ros::Duration(1.0)))
+	{
+		ROS_INFO("Transform from /map to /head_hokuyo_frame failed");
+		return;
+	}
+	tf_listener->lookupTransform("/map", "/head_hokuyo_frame", ros_cloud->header.stamp, laser_transform);
 	tf::Vector3 beam_start = laser_transform.getOrigin();
 	beam_start.setZ(0);
 	
