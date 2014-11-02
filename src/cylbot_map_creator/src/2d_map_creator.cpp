@@ -140,7 +140,7 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& ros_cloud)
 		if(fabs(beam_length - 30.0) < .03 || fabs(beam_length) < .5)
 			continue; // skip points that are near the max sensor range
 		
-		int new_value = getCellOccupancy(point->x, point->y) + 15;
+		int new_value = getCellOccupancy(point->x, point->y) + 25;
 		if(new_value > 100)
 			new_value = 100;
 		setCellOccupancy(point->x, point->y, new_value);
@@ -195,7 +195,7 @@ int main(int argc, char** argv)
 	{
 		for(int j=0; j<nav_map.info.width; j++)
 		{
-			nav_map.data.push_back(30);
+			nav_map.data.push_back(50);
 		}
 	}
 
