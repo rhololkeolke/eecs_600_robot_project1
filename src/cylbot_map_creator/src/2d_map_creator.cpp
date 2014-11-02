@@ -17,7 +17,7 @@ int x_origin, y_origin;
 
 inline int round (const float a) { return int (a + 0.5); }
 
-void setCellOccupancy(int x, int y, int value)
+void setCellOccupancy(const int x, const int y, const int value)
 {
 	// only include this point if it falls within the map grid
 	if(x < nav_map.info.width && x >= 0 &&
@@ -27,12 +27,31 @@ void setCellOccupancy(int x, int y, int value)
 	}
 }
 
-void setCellOccupancy(const float x, const float y, int value)
+void setCellOccupancy(const float x, const float y, const int value)
 {
 	int x_coord = (int)(x/nav_map.info.resolution) + x_origin;
 	int y_coord = (int)(y/nav_map.info.resolution) + y_origin;
 
 	setCellOccupancy(x_coord, y_coord, value);
+}
+
+int getCellOccupancy(const int x, const int y)
+{
+	if(x < nav_map.info.width && x >= 0 &&
+	   y < nav_map.info.height && y >= 0)
+	{
+		return nav_map.data[y*nav_map.info.width + x];
+	}
+
+	return 50;
+}
+
+int getCellOccupancy(const float x, const float y)
+{
+	int x_coord = (int)(x/nav_map.info.resolution) + x_origin;
+	int y_coord = (int)(y/nav_map.info.resolution) + y_origin;
+
+	return getCellOccupancy(x_coord, y_coord);
 }
 
 void beamDDA(const tf::Vector3& beamStart, const tf::Vector3& beamEnd)
@@ -59,11 +78,14 @@ void beamDDA(const tf::Vector3& beamStart, const tf::Vector3& beamEnd)
 			 xIncrement, yIncrement);*/
 
 	setCellOccupancy(x, y, 0);
-	for(int k=0; k<steps; k++)
+	for(int k=0; k<steps-1; k++)
 	{
 		x += xIncrement;
 		y += yIncrement;
-		setCellOccupancy(round(x)+x_origin, round(y)+y_origin, 0);
+		int new_value = getCellOccupancy(round(x)+x_origin, round(y)+y_origin) - 5;
+		if(new_value < 0)
+			new_value = 0;
+		setCellOccupancy(round(x)+x_origin, round(y)+y_origin, new_value);
 	}
 }
 
@@ -101,8 +123,15 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& ros_cloud)
 		tf::Vector3 beam_end(point->x, point->y, 0);
 
 		beamDDA(beam_start, beam_end);
+
+		double beam_length = beam_end.distance(beam_start);
+		if(fabs(beam_length - 30.0) < .03)
+			continue; // skip points that are near the max sensor range
 		
-		setCellOccupancy(point->x, point->y, 100);		
+		int new_value = getCellOccupancy(point->x, point->y) + 15;
+		if(new_value > 100)
+			new_value = 100;
+		setCellOccupancy(point->x, point->y, new_value);
 	}
 	
 	nav_map.header.stamp = ros::Time::now();
@@ -133,7 +162,7 @@ int main(int argc, char** argv)
 	{
 		for(int j=0; j<nav_map.info.width; j++)
 		{
-			nav_map.data.push_back(-1);
+			nav_map.data.push_back(30);
 		}
 	}
 
