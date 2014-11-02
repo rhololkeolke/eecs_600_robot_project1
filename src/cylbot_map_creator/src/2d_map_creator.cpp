@@ -12,6 +12,7 @@ typedef pcl::PointCloud<pcl::PointXYZ> PointCloudXYZ;
 nav_msgs::OccupancyGrid nav_map;
 ros::Publisher map_pub;
 tf::TransformListener* tf_listener;
+bool map_changed;
 
 int x_origin, y_origin;
 
@@ -134,7 +135,9 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& ros_cloud)
 		beamDDA(beam_start, beam_end);
 
 		double beam_length = beam_end.distance(beam_start);
-		if(fabs(beam_length - 30.0) < .03)
+		// ignore the max distance results and results that come from
+		// within the bounding cylinder of the robot
+		if(fabs(beam_length - 30.0) < .03 || fabs(beam_length) < .5)
 			continue; // skip points that are near the max sensor range
 		
 		int new_value = getCellOccupancy(point->x, point->y) + 15;
@@ -142,15 +145,36 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& ros_cloud)
 			new_value = 100;
 		setCellOccupancy(point->x, point->y, new_value);
 	}
-	
-	nav_map.header.stamp = ros::Time::now();
-	map_pub.publish(nav_map);
+
+	map_changed = true;
 }
 
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "map_creator_2d");
 	ros::NodeHandle nh;
+
+	ros::NodeHandle priv_nh("~");
+	double map_resolution, x_offset, y_offset;
+	int map_width, map_height;
+	priv_nh.param<double>("resolution", map_resolution, 0.05);
+	priv_nh.param<int>("width", map_width, 1000);
+	priv_nh.param<int>("height", map_height, 1000);
+	priv_nh.param<double>("x_offset", x_offset, .5);
+	priv_nh.param<double>("y_offset", y_offset, .5);
+
+	if(x_offset < 0 || x_offset > 1)
+	{
+		ROS_ERROR("Invalid x_offset. Must be in range [0, 1.0]");
+		return 1;
+	}
+
+	if(y_offset < 0 || y_offset > 1)
+	{
+		ROS_ERROR("Invalid y_offset. Must be in range [0, 1.0]");
+		return 1;
+	}
+	
 
 	tf_listener = new tf::TransformListener();
 
@@ -159,11 +183,11 @@ int main(int argc, char** argv)
 
 	// fill out the meta-data
 	nav_map.info.map_load_time = ros::Time::now();
-	nav_map.info.resolution = 0.05f;
-	nav_map.info.width = 1000;
-	nav_map.info.height = 1000;
-	nav_map.info.origin.position.x = -nav_map.info.resolution*(nav_map.info.width/2.0);
-	nav_map.info.origin.position.y = -nav_map.info.resolution*(nav_map.info.height/2.0);
+	nav_map.info.resolution = map_resolution;
+	nav_map.info.width = map_width;
+	nav_map.info.height = map_height;
+	nav_map.info.origin.position.x = -nav_map.info.resolution*nav_map.info.width*x_offset;
+	nav_map.info.origin.position.y = -nav_map.info.resolution*nav_map.info.height*y_offset;
 	nav_map.info.origin.orientation.w = 1.0;
 
 	// initialize to all unknown
@@ -183,7 +207,19 @@ int main(int argc, char** argv)
 	map_pub = nh.advertise<nav_msgs::OccupancyGrid>("/map", 1, true);
 	ros::Subscriber laser_sub = nh.subscribe<sensor_msgs::PointCloud2>("laser/points", 10, &laserCallback);
 
-	ros::spin();
+	ros::Rate loop_rate(10);
+	while(ros::ok())
+	{
+		if(map_changed)
+		{
+			nav_map.header.stamp = ros::Time::now();
+			map_pub.publish(nav_map);
+			map_changed = false;
+		}
+
+		ros::spinOnce();
+		loop_rate.sleep();
+	}
 
 	delete tf_listener;
 }
