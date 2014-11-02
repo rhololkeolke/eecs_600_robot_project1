@@ -37,9 +37,28 @@ ScanDataVector laser_scans;
 geometry_msgs::Pose wall_pose;
 geometry_msgs::Vector3 wall_scale;
 
-IntrinsicParams learnIntrinsicParams(const ScanDataVector laser_scans, double sigma_hit, double lambda_short);
+IntrinsicParams learnIntrinsicParams(const ScanDataVector laser_scans,
+									 const double sigma_hit, const double lambda_short,
+									 const double epsilon=1e-5, const int max_iterations=20);
 
 double distanceAccordingToMap(tf::Vector3 beam_start, tf::Vector3 beam_end);
+double getPMax(const double sensor_value, const double epsilon=.01)
+{
+	if(fabs(sensor_value - 30.0) > epsilon)
+		return 0.0;
+	return 1.0;
+}
+
+void printIntrinsicParams(const IntrinsicParams& params)
+{
+	ROS_INFO("zhit: %3.3f\nzshort: %3.3f\nzmax: %3.3f\nzrand: %3.3f\nsigma_hit: %3.3f\nlambda_short: %3.3f",
+			 params.zhit,
+			 params.zshort,
+			 params.zmax,
+			 params.zrand,
+			 params.sigma_hit,
+			 params.lambda_short);
+}
 
 // this method just collects data
 void laserScanCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points)
@@ -95,7 +114,7 @@ void laserScanCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points)
 void wallCallback(const visualization_msgs::Marker::ConstPtr& wall_info)
 {
 	ROS_INFO("Got wall info");
-	ROS_INFO_STREAM(*wall_info);
+	ROS_DEBUG_STREAM(*wall_info);
 	wall_pose = wall_info->pose;
 	wall_scale = wall_info->scale;
 
@@ -134,31 +153,115 @@ int main(int argc, char** argv)
 	IntrinsicParams params = learnIntrinsicParams(laser_scans, .01, 1.0);
 }
 
-IntrinsicParams learnIntrinsicParams(const ScanDataVector laser_scans,
-									 double sigma_hit, double lambda_short)
+double getParameterDelta(const IntrinsicParams& params1, const IntrinsicParams& params2)
 {
-	for(ScanDataVector::const_iterator scan = laser_scans.begin();
-		scan != laser_scans.end();
-		scan++)
-	{
-		for(pcl::PointCloud<pcl::PointXYZ>::const_iterator beam_end = (*scan)->beam_ends.begin();
-			beam_end != (*scan)->beam_ends.end();
-			beam_end++)
+	double result = 0;
+	result += fabs(params1.zhit - params2.zhit);
+	result += fabs(params1.zshort - params2.zshort);
+	result += fabs(params1.zmax - params2.zmax);
+	result += fabs(params1.zrand - params2.zrand);
+	result += fabs(params1.sigma_hit - params2.sigma_hit);
+	result += fabs(params1.lambda_short - params2.lambda_short);
+
+	return result;
+}
+
+IntrinsicParams learnIntrinsicParams(const ScanDataVector laser_scans,
+									 const double sigma_hit, const double lambda_short,
+									 const double epsilon, const int max_iterations)
+{
+
+	IntrinsicParams old_params;
+	IntrinsicParams new_params;
+	new_params.zhit = new_params.zshort = new_params.zmax = new_params.zrand = 0.25;
+	new_params.sigma_hit = sigma_hit;
+	new_params.lambda_short = lambda_short;
+
+	printIntrinsicParams(new_params);
+
+	boost::math::uniform_distribution<> pRand(0.0, 30.0);
+	int iteration = 0;
+	do {
+		old_params = new_params;
+
+		int Zcard = 0;
+		double total_ehit=0, total_eshort=0, total_emax=0, total_erand=0;
+		double sigma_update_inner_sum = 0;
+		double lambda_update_denom = 0;
+		for(ScanDataVector::const_iterator scan = laser_scans.begin();
+			scan != laser_scans.end();
+			scan++)
 		{
-			tf::Vector3 beam_end_vec(beam_end->x, beam_end->y, beam_end->z);
-			double mapDist = distanceAccordingToMap((*scan)->beam_start, beam_end_vec);
+			for(pcl::PointCloud<pcl::PointXYZ>::const_iterator beam_end = (*scan)->beam_ends.begin();
+				beam_end != (*scan)->beam_ends.end();
+				beam_end++)
+			{
+				tf::Vector3 beam_end_vec(beam_end->x, beam_end->y, beam_end->z);
+				double mapDist = distanceAccordingToMap((*scan)->beam_start, beam_end_vec);
 
-			tf::Vector3 beam_vec = beam_end_vec - (*scan)->beam_start;
-			double beam_length = sqrt(beam_vec.getX()*beam_vec.getX() +
-									  beam_vec.getY()*beam_vec.getY() +
-									  beam_vec.getZ()*beam_vec.getZ());
+				if(mapDist == -1)
+					mapDist = 30.0;
 
-			ROS_INFO("%3.3f --- %3.3f", mapDist, beam_length);
+				boost::math::normal_distribution<> pHit(mapDist, old_params.sigma_hit);
+				boost::math::exponential_distribution<> pShort(old_params.lambda_short);
+
+				tf::Vector3 beam_vec = beam_end_vec - (*scan)->beam_start;
+				double beam_length = sqrt(beam_vec.getX()*beam_vec.getX() +
+										  beam_vec.getY()*beam_vec.getY() +
+										  beam_vec.getZ()*beam_vec.getZ());
+
+				double eta = 1.0/(boost::math::pdf(pHit, beam_length) + boost::math::pdf(pShort, beam_length) + boost::math::pdf(pRand, beam_length) + getPMax(beam_length));
+
+				// ROS_INFO("%3.3f, %3.3f -- %3.3f -- %3.3f, %3.3f, %3.3f, %3.3f", mapDist, beam_length, eta, e_hit, e_short, e_max, e_rand);
+				double ehit = eta*boost::math::pdf(pHit, beam_length);
+				sigma_update_inner_sum += ehit*(beam_length - mapDist)*(beam_length - mapDist);
+				total_ehit += ehit;
+
+				double eshort = eta*boost::math::pdf(pShort, beam_length);
+				lambda_update_denom += eshort*beam_length;
+				total_eshort += eshort;
+
+				double emax = eta*getPMax(beam_length);
+				total_emax += emax;
+				double erand = eta*boost::math::pdf(pRand, beam_length);
+				total_erand += erand;
+
+				Zcard++;
+				
+				if(ehit > 1 || eshort > 1 || emax > 1 || erand > 1 || total_ehit/Zcard > 1 || total_eshort/Zcard > 1 || total_emax/Zcard > 1 || total_erand/Zcard > 1)
+					ROS_ERROR("%3.3f, %3.3f -- %3.3f -- %3.3f, %3.3f, %3.3f, %3.3f -- %3.3f, %3.3f, %3.3f, %3.3f", mapDist, beam_length, eta, ehit, eshort, emax, erand, total_ehit, total_eshort, total_emax, total_erand);
+
+			}
 		}
+
+		double ZcardInv = 1.0/((double)Zcard);
+
+		// update the parameters
+		new_params.zhit = ZcardInv*total_ehit;
+		new_params.zshort = ZcardInv*total_eshort;
+		new_params.zmax = ZcardInv*total_emax;
+		new_params.zrand = ZcardInv*total_erand;
+
+		new_params.sigma_hit = sqrt(sigma_update_inner_sum/total_ehit);
+		new_params.lambda_short = total_eshort/lambda_update_denom;
+		
+		ROS_INFO("Iteration: %d of %d with change of %3.3f", ++iteration, max_iterations, getParameterDelta(new_params, old_params));
+		printIntrinsicParams(new_params);
+	} while(getParameterDelta(new_params, old_params) > epsilon && iteration < max_iterations);
+
+	ROS_INFO("Test: %3.3f, %3.3f", getPMax(10.0), getPMax(30.0));
+
+	if(iteration < max_iterations)
+	{
+		ROS_INFO("EM algorithm converged");
 	}
-	
-	IntrinsicParams params;
-	return params;
+	else
+	{
+		ROS_INFO("EM algorithm failed to converge after %d iterations", max_iterations);
+	}
+
+
+	return new_params;
 }
 
 tf::Vector3 rotateVectorByQuat(const tf::Vector3& vec, const tf::Quaternion& quat)
