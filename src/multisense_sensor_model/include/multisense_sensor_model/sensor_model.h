@@ -39,7 +39,7 @@ namespace multisense_sensor_model
 			{
 				boost::math::exponential_distribution<> dist(lambda_short);
 
-				if(sensor_value < 0 && sensor_value > map_value)
+				if(sensor_value < 0 || sensor_value > map_value)
 					return 0;
 
 				double eta = 1.0/(1.0 - exp(-lambda_short*map_value));
