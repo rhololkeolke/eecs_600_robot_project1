@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package>
+  <name>octomap_tests</name>
+  <version>0.0.0</version>
+  <description>The octomap_tests package</description>
+
+  <maintainer email="dts34@case.edu">Devin Schwab</maintainer>
+
+  <license>BSD</license>
+
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>octomap</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>cmake_modules</build_depend>
+  <run_depend>octomap</run_depend>
+  <run_depend>roscpp</run_depend>
+
+</package>
