@@ -3,6 +3,7 @@ project(octomap_tests)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  octomap_msgs
 )
 
 find_package(octomap REQUIRED)
@@ -34,3 +35,6 @@ include_directories(
 
 add_executable(simple_example src/simple_example.cpp)
 target_link_libraries(simple_example ${OCTOMAP_LIBRARIES})
+
+add_executable(octree_to_rviz_test src/octree_to_rviz_test.cpp)
+target_link_libraries(octree_to_rviz_test ${catkin_LIBRARIES} ${OCTOMAP_LIBRARIES})
