@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   tf
   octomap_msgs
+  octomap_ros
 )
 find_package(octomap REQUIRED)
 
@@ -46,12 +47,21 @@ target_link_libraries(test_map_publisher ${catkin_LIBRARIES})
 add_executable(2d_map_creator src/2d_map_creator.cpp)
 target_link_libraries(2d_map_creator ${catkin_LIBRARIES})
 
+add_executable(octomap_creator src/octomap_creator.cpp)
+target_link_libraries(octomap_creator ${catkin_LIBRARIES} ${OCTOMAP_LIBRARIES})
+
+add_executable(my_octomap_saver src/octomap_saver.cpp)
+target_link_libraries(my_octomap_saver ${catkin_LIBRARIES} ${OCTOMAP_LIBRARIES})
+
 #############
 ## Install ##
 #############
 
 install(TARGETS
   test_map_publisher
+  2d_map_creator
+  octomap_creator
+  my_octomap_saver
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
