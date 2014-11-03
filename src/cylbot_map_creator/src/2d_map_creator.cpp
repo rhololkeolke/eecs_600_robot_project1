@@ -163,6 +163,10 @@ int main(int argc, char** argv)
 	priv_nh.param<double>("x_offset", x_offset, .5);
 	priv_nh.param<double>("y_offset", y_offset, .5);
 
+	ROS_INFO("Map Resolution %3.3f", map_resolution);
+	ROS_INFO("Map Size (%d, %d)", map_width, map_height);
+	ROS_INFO("Map Origin Offset (%3.3f, %3.3f)", x_offset, y_offset);
+
 	if(x_offset < 0 || x_offset > 1)
 	{
 		ROS_ERROR("Invalid x_offset. Must be in range [0, 1.0]");
