@@ -38,3 +38,6 @@ target_link_libraries(simple_example ${OCTOMAP_LIBRARIES})
 
 add_executable(octree_to_rviz_test src/octree_to_rviz_test.cpp)
 target_link_libraries(octree_to_rviz_test ${catkin_LIBRARIES} ${OCTOMAP_LIBRARIES})
+
+add_executable(octree_ray_test src/octree_ray_test.cpp)
+target_link_libraries(octree_ray_test ${catkin_LIBRARIES} ${OCTOMAP_LIBRARIES})
