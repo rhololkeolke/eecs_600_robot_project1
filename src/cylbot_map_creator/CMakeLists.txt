@@ -11,7 +11,9 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_conversions
   pcl_ros
   tf
+  octomap_msgs
 )
+find_package(octomap REQUIRED)
 
 ###################################
 ## catkin specific configuration ##
@@ -26,7 +28,7 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES cylbot_map_creator
 #  CATKIN_DEPENDS nav_msgs roscpp sensor_msgs
-#  DEPENDS system_lib
+  DEPENDS octomap
 )
 
 ###########
@@ -35,6 +37,7 @@ catkin_package(
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${OCTOMAP_INCLUDE_DIRS}
 )
 
 add_executable(test_map_publisher src/test_map_publisher.cpp)
