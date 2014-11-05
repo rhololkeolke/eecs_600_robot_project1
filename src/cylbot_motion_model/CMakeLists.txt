@@ -42,3 +42,6 @@ include_directories(
 
 add_executable(pose_array_test src/pose_array_test.cpp)
 target_link_libraries(pose_array_test ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${Eigen_LIBRARIES})
+
+add_executable(motion_model_test src/motion_model_test.cpp)
+target_link_libraries(motion_model_test ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${Eigen_LIBRARIES})
