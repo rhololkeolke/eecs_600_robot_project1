@@ -47,3 +47,10 @@ include_directories(
 
 add_library(cylbot_mcl src/pose_cloud.cpp)
 target_link_libraries(cylbot_mcl ${catkin_LIBRARIES} ${Eigen_LIBRARIES} ${Boost_LIBRARIES})
+
+#############
+## Testing ##
+#############
+
+catkin_add_gtest(pose_cloud_tests test/pose_cloud_tests.cpp)
+target_link_libraries(pose_cloud_tests cylbot_mcl)

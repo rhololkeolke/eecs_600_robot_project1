@@ -16,6 +16,13 @@ namespace cylbot_mcl
 {
 	typedef struct RobotModel_
 	{
+		RobotModel_()
+			{
+				for(int i=0; i<alpha.size(); i++)
+				{
+					alpha[i] = .1;
+				}
+			}
 		multisense_sensor_model::IntrinsicParams sensor_params;
 		boost::array<double, 6> alpha;
 	} RobotModel;

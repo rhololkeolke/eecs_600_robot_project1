@@ -37,6 +37,13 @@ namespace cylbot_mcl
 		Eigen::VectorXd mean(3);
 		Eigen::MatrixXd covar(3,3);
 
+		mean << initial_pose.pose.pose.position.x,
+			    initial_pose.pose.pose.position.y,
+			    tf::getYaw(initial_pose.pose.pose.orientation);
+		covar << initial_pose.pose.covariance[0], 0,                                  0,
+			     0,                               initial_pose.pose.covariance[7],    0,
+			     0,                               0,                                  initial_pose.pose.covariance[35];
+
 		Eigen::MatrixXd normTransform(3, 3);
 		Eigen::LLT<Eigen::MatrixXd> cholSolver(covar);
 		
