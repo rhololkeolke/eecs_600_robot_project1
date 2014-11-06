@@ -146,43 +146,40 @@ namespace cylbot_mcl
 			total_weight += 1.0;
 		}
 
-		// normalize the weight of each pose particle
-		for(Weights::iterator pose_weight = pose_weights.begin();
-			pose_weight != pose_weights.end();
-			pose_weight++)
+		// normalize
+		for(Weights::iterator weight_pair = pose_weights.begin();
+			weight_pair != pose_weights.end();
+			weight_pair++)
 		{
-			pose_weight->second /= total_weight;
+			weight_pair->second /= total_weight;
 		}
 
-		// sort the vector by the weights (i.e. the second element)
-		// this is the first step to converting the weights to a CDF for sampling
-		std::sort(pose_weights.begin(), pose_weights.end(), sort_pair_second<WeightPairFirst, WeightPairSecond>);
-
-		// convert to CDF
-		for(int i=1; i<pose_weights.size(); i++)
-		{
-			pose_weights[i].second += pose_weights[i-1].second;
-		}
+		double M = (double)(pose_weights.size());
 
 		// create prob generator
-		boost::random::uniform_real_distribution<> dist;
+		boost::random::uniform_real_distribution<> dist(0.0, 1.0/M);
 		boost::variate_generator<boost::mt19937, boost::random::uniform_real_distribution<> > rand(rng, dist);
 
-		// resample
+		// resample using low variance sampling from table 4.4 on page 110 of the Probabilistic robotics book
 		geometry_msgs::PoseArray::_poses_type poses;
-		for(int i=0; i<pose_weights.size(); i++)
+
+		double r = rand();
+		double c = pose_weights.begin()->second;
+		int i=0;
+		for(int m=0; m<M; m++)
 		{
-			//Weights::iterator weight_pair;
-			Weights::iterator weight_pair = std::lower_bound<Weights::iterator, double>(pose_weights.begin(),
-																						pose_weights.end(),
-																						rand(),
-																						lower_bound_pair_second<WeightPairFirst,
-																						WeightPairSecond, double>);
-			poses.push_back(*(weight_pair->first));
+			double U = r + m/M;
+			while(U > c)
+			{
+				i++;
+				c = c + pose_weights[i].second;
+			}
+			poses.push_back(*(pose_weights[i].first));
 		}
 
 		// update the main datastructure array
 		pose_array.poses = poses;
+
 	}
 
 	void PoseCloud2D::mapUpdate(const nav_msgs::OccupancyGrid& map)
