@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
-#include <geometry_msgs/Twist.h>
+#include <geometry_msgs/TwistStamped.h>
 #include <tf/transform_datatypes.h>
 #include <boost/random.hpp>
 #include <boost/random/normal_distribution.hpp>
@@ -18,21 +18,26 @@ Eigen::internal::scalar_normal_dist_op<double> randN;
 
 double alpha[6];
 
+// random number generator
+boost::mt19937 rng;
+
+geometry_msgs::TwistStamped::ConstPtr curr_vel_cmd;
+
 void sampleVelocityMotionModel(const geometry_msgs::Twist& u, \
 							   geometry_msgs::PoseArray::_poses_type::iterator x,
 							   double dt,
 							   const double (&alpha)[6],
 							   boost::mt19937& rng)
 {
-	double v_hat_variance = alpha[0]*u.linear.x*u.linear.x + alpha[1]*u.angular.z*u.angular.z;
-	double w_hat_variance = alpha[2]*u.linear.x*u.linear.x + alpha[3]*u.angular.z*u.angular.z;
-	double gamma_variance = alpha[4]*u.linear.x*u.linear.x + alpha[5]*u.angular.z*u.angular.z;
+	double v_hat_variance = alpha[0]*u.linear.y*u.linear.y + alpha[1]*u.angular.z*u.angular.z;
+	double w_hat_variance = alpha[2]*u.linear.y*u.linear.y + alpha[3]*u.angular.z*u.angular.z;
+	double gamma_variance = alpha[4]*u.linear.y*u.linear.y + alpha[5]*u.angular.z*u.angular.z;
 
 	boost::normal_distribution<> v_hat_dist(0.0, sqrt(v_hat_variance));
 	boost::normal_distribution<> w_hat_dist(0.0, sqrt(w_hat_variance));
 	boost::normal_distribution<> gamma_dist(0.0, sqrt(gamma_variance));
 
-	double v_hat = u.linear.x + v_hat_dist(rng);
+	double v_hat = u.linear.y + v_hat_dist(rng);
 	double w_hat = u.angular.z + w_hat_dist(rng);
 	double gamma = gamma_dist(rng);
 
@@ -97,6 +102,11 @@ void initialPoseCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPt
 	}
 }
 
+void velocityCallback(const geometry_msgs::TwistStamped::ConstPtr& twist_msg)
+{
+	curr_vel_cmd = twist_msg;
+}
+
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "pose_array_test");
@@ -104,36 +114,48 @@ int main(int argc, char** argv)
 
 	ros::Publisher pose_array_pub = nh.advertise<geometry_msgs::PoseArray>("pose_array_test", 1);
 	ros::Subscriber initial_pose_sub = nh.subscribe<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 10, &initialPoseCallback, ros::TransportHints().tcpNoDelay(false));
+	ros::Subscriber velocity_sub = nh.subscribe<geometry_msgs::TwistStamped>("/cylbot/velocity", 1, &velocityCallback);
 
 	// initialize alpha
 	for(int i=0; i<6; i++)
 		alpha[i] = .1;
 
-	// simulate moving in a straight line for one second every second
-	geometry_msgs::Twist u;
-	u.linear.x = .25;
-	u.angular.z = .1;
-
-	// random number generator
-	boost::mt19937 rng;
-	
 	pose_array.header.frame_id = "/map";
 
-	double hz = 1000;
-	ros::Rate loop_rate(hz);
+	ros::Time last_time = ros::Time::now();
+	ros::Rate loop_rate(100);
 	while(ros::ok())
 	{
-		ros::spinOnce();
-
-		for(geometry_msgs::PoseArray::_poses_type::iterator pose = pose_array.poses.begin();
-			pose != pose_array.poses.end();
-			pose++)
+		if(curr_vel_cmd != NULL)
 		{
-			sampleVelocityMotionModel(u, pose, 1.0/hz, alpha, rng);
+			// get the time delta
+			ros::Time curr_time = ros::Time::now();
+			ros::Duration dt = curr_time - last_time;
+			last_time = curr_time;
+			
+			// skip when commands are at 0
+			if(fabs(curr_vel_cmd->twist.linear.x) > 0.1 ||
+			   fabs(curr_vel_cmd->twist.linear.y) > 0.1 ||
+			   fabs(curr_vel_cmd->twist.angular.z) > 0.1)
+			{
+
+				ROS_INFO_STREAM("Updating pose estimates with command\n" << curr_vel_cmd->twist);
+				ROS_INFO_STREAM("\tdt: " << dt.toSec());
+
+				// update the pose estimates with the probabilistic motion model
+				for(geometry_msgs::PoseArray::_poses_type::iterator pose = pose_array.poses.begin();
+					pose != pose_array.poses.end();
+					pose++)
+				{
+					sampleVelocityMotionModel(curr_vel_cmd->twist, pose, dt.toSec(), alpha, rng);
+				}
+			}
 		}
-		
+
 		pose_array.header.stamp = ros::Time::now();
 		pose_array_pub.publish(pose_array);
+		
+		ros::spinOnce();
 		loop_rate.sleep();
 	}
 	
