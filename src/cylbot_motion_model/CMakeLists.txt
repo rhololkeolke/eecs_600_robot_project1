@@ -6,9 +6,11 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   tf
   cmake_modules
+  gazebo_ros
 )
 find_package(Eigen REQUIRED)
 find_package(Boost REQUIRED)
+find_package(gazebo REQUIRED)
 
 ###################################
 ## catkin specific configuration ##
@@ -22,7 +24,7 @@ find_package(Boost REQUIRED)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES cylbot_motion_model
-#  CATKIN_DEPENDS geometry_msgs roscpp tf
+  CATKIN_DEPENDS geometry_msgs roscpp tf gazebo_plugins
   DEPENDS eigen
 )
 
@@ -37,6 +39,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
   ${Eigen_INCLUDE_DIRS}
+  ${GAZEBO_INCLUDE_DIRS}
   include
 )
 
@@ -45,3 +48,6 @@ target_link_libraries(pose_array_test ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${E
 
 add_executable(motion_model_test src/motion_model_test.cpp)
 target_link_libraries(motion_model_test ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${Eigen_LIBRARIES})
+
+add_library(CylbotVelocityInfo src/cylbot_velocity_info.cpp)
+target_link_libraries(CylbotVelocityInfo ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${GAZEBO_LIBRARIES})
