@@ -22,7 +22,7 @@ find_package(gazebo REQUIRED)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES cylbot_motion_model
   CATKIN_DEPENDS geometry_msgs roscpp tf gazebo_plugins
   DEPENDS eigen
