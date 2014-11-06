@@ -108,6 +108,11 @@ void velocityCallback(const geometry_msgs::TwistStamped::ConstPtr& twist_msg,
 					  PoseCloud2D* pose_cloud,
 					  geometry_msgs::TwistStamped::ConstPtr& last_cmd)
 {
+	if(last_cmd == NULL)
+	{
+		last_cmd = twist_msg;
+		return;
+	}
 	ros::Duration dt = twist_msg->header.stamp - last_cmd->header.stamp;
 	last_cmd = twist_msg;
 
@@ -151,7 +156,7 @@ int main(int argc, char** argv)
 																				   _1,
 																				   boost::ref(tf_listener),
 																				   &pose_cloud));
-	ros::Subscriber initial_pose_sub = nh.subscribe<geometry_msgs::PoseWithCovarianceStamped>("/initial_pose", 1,
+	ros::Subscriber initial_pose_sub = nh.subscribe<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 1,
 																							  boost::bind(initialPoseCallback,
 																										  _1,
 																										  &pose_cloud,
