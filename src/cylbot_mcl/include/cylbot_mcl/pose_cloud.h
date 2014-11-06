@@ -23,6 +23,16 @@ namespace cylbot_mcl
 					alpha[i] = .1;
 				}
 			}
+
+		RobotModel_(multisense_sensor_model::IntrinsicParams params)
+			{
+				sensor_params = params;
+				for(int i=0; i<alpha.size(); i++)
+				{
+					alpha[i] = .1;
+				}
+			}
+
 		multisense_sensor_model::IntrinsicParams sensor_params;
 		boost::array<double, 6> alpha;
 	} RobotModel;

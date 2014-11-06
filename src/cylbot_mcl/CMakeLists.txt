@@ -48,6 +48,9 @@ include_directories(
 add_library(cylbot_mcl src/pose_cloud.cpp)
 target_link_libraries(cylbot_mcl ${catkin_LIBRARIES} ${Eigen_LIBRARIES} ${Boost_LIBRARIES})
 
+add_executable(localization_2d src/localization_2d.cpp)
+target_link_libraries(localization_2d cylbot_mcl)
+
 #############
 ## Testing ##
 #############
