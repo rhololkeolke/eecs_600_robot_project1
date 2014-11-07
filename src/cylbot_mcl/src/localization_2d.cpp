@@ -11,42 +11,33 @@
 #include <boost/bind.hpp>
 #include <boost/ref.hpp>
 #include <pcl/filters/extract_indices.h>
+#include <geometry_msgs/Pose.h>
 
 using namespace multisense_sensor_model;
 using namespace cylbot_mcl;
+
+ros::Subscriber map_sub;
 
 void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points,
 				   const tf::TransformListener& tf_listener,
 				   PoseCloud2D* pose_cloud)
 {
-	sensor_msgs::PointCloud2 map_ros_cloud;
-	if(!tf_listener.waitForTransform(
-		   "/map",
-		   "/base_link",
-		   laser_points->header.stamp,
-		   ros::Duration(1.0)))
-	{
-		ROS_WARN("Transform from /map to /base_link failed");
-		return;
-	}
-	pcl_ros::transformPointCloud("/map", *laser_points, map_ros_cloud, tf_listener);
-
 	tf::StampedTransform laser_transform;
 	if(!tf_listener.waitForTransform(
-		   "/map",
+		   "/base_link",
 		   "/head_hokuyo_frame",
 		   laser_points->header.stamp,
 		   ros::Duration(1.0)))
 	{
-		ROS_WARN("Transform from /map to /head_hokuyo_frame failed");
+		ROS_WARN("Transform from /base_link to /head_hokuyo_frame failed");
 		return;
 	}
 
-	tf_listener.lookupTransform("/map", "/head_hokuyo_frame", laser_points->header.stamp, laser_transform);
+	tf_listener.lookupTransform("/base_link", "/head_hokuyo_frame", laser_points->header.stamp, laser_transform);
 	tf::Vector3 beam_start = laser_transform.getOrigin();
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_raw_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-	pcl::fromROSMsg(map_ros_cloud, *pcl_raw_cloud);
+	pcl::fromROSMsg(*laser_points, *pcl_raw_cloud);
 
 	pcl::PointIndices::Ptr invalid_indices(new pcl::PointIndices);
 	int i=0;
@@ -54,12 +45,17 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points,
 		point != pcl_raw_cloud->points.end();
 		point++)
 	{
+		if(point->x != point->x || point->y != point->y || point->z != point->z)
+		{
+			ROS_WARN("Point has a NaN value");
+		}
+
 		// calculate 3D beam length and check for max value
 		double x = point->x - beam_start.x();
 		double y = point->y - beam_start.y();
 		double z = point->z - beam_start.z();
 		double beam_length_3d = sqrt(x*x + y*y + z*z);
-		if(fabs(beam_length_3d - 30.0) < .04)
+		if(beam_length_3d > 30.0)
 		{
 			invalid_indices->indices.push_back(i);
 			i++;
@@ -67,7 +63,7 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points,
 		}
 
 		// check if point is in the plane (or at least close to it)
-		if(point->z > 1.2 || point->z < .8)
+		if(point->z > .8034 || point->z < .4034)
 		{
 			invalid_indices->indices.push_back(i);
 			i++;
@@ -87,14 +83,36 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points,
 	pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::ExtractIndices<pcl::PointXYZ> invalid_filter;
 	invalid_filter.setInputCloud(pcl_raw_cloud);
-	invalid_filter.setKeepOrganized(true);
 	invalid_filter.setNegative(true);
 	invalid_filter.setIndices(invalid_indices);
 	invalid_filter.filter(*pcl_cloud);
 
-	beam_start.setZ(0);
-	
 	pose_cloud->sensorUpdate(*pcl_cloud, beam_start);
+
+	// tf::StampedTransform map_transform;
+	// if(!tf_listener.waitForTransform(
+	// 	   "/map",
+	// 	   "/base_link",
+	// 	   laser_points->header.stamp,
+	// 	   ros::Duration(1.0)))
+	// {
+	// 	ROS_WARN("Transform from /map to /base_link failed");
+	// 	return;
+	// }
+	// tf_listener.lookupTransform("/map", "/base_link", laser_points->header.stamp, map_transform);
+
+	// geometry_msgs::Pose true_pose;
+	// tf::pointTFToMsg(map_transform.getOrigin(), true_pose.position);
+	// tf::quaternionTFToMsg(map_transform.getRotation(), true_pose.orientation);
+	
+	// double truePoseProb = pose_cloud->getMeasurementProbability(true_pose, *pcl_cloud, beam_start);
+	// ROS_INFO_STREAM("true pose probability:" << truePoseProb);
+
+	// geometry_msgs::Pose fake_pose = true_pose;
+	// fake_pose.position.x *= 1.1;
+	// fake_pose.position.y *= 1.1;
+	// double fakePoseProb = pose_cloud->getMeasurementProbability(fake_pose, *pcl_cloud, beam_start);
+	// ROS_INFO_STREAM("fake pose probability:" << fakePoseProb);
 }
 
 void initialPoseCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& initial_pose,
@@ -123,6 +141,8 @@ void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& map,
 				 PoseCloud2D* pose_cloud)
 {
 	pose_cloud->mapUpdate(*map);
+
+	map_sub.shutdown();
 }
 					  
 
@@ -169,7 +189,7 @@ int main(int argc, char** argv)
 																					&pose_cloud,
 																					boost::ref(last_velocity)));
 
-	ros::Subscriber map_sub = nh.subscribe<nav_msgs::OccupancyGrid>("/map", 1, boost::bind(mapCallback, _1, &pose_cloud));
+	map_sub = nh.subscribe<nav_msgs::OccupancyGrid>("/map", 1, boost::bind(mapCallback, _1, &pose_cloud));
 
 	ros::Publisher pose_array_pub = nh.advertise<geometry_msgs::PoseArray>("/pose_cloud", 1);
 

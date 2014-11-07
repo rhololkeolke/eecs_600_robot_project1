@@ -59,12 +59,22 @@ namespace cylbot_mcl
 		geometry_msgs::PoseArray getPoses();
 
 	private:
+		int getCellOccupancy(const int x, const int y);
+
+	public:
+		double getMeasurementProbability(const geometry_msgs::Pose& pose,
+										 const pcl::PointCloud<pcl::PointXYZ>& beam_ends,
+										 const tf::Vector3 beam_start);
+
+	private:
 		RobotModel model;
 		nav_msgs::OccupancyGrid map;
 		geometry_msgs::PoseArray pose_array;
 		Eigen::internal::scalar_normal_dist_op<double> randn;
 		boost::mt19937 rng;
 		geometry_msgs::Twist last_cmd;
+
+		int num_sensor_updates;
 
 	};
 
@@ -79,6 +89,7 @@ namespace cylbot_mcl
 	{
 		return left.second < right;
 	}
+
 }
 
 #endif

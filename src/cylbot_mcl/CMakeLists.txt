@@ -57,3 +57,6 @@ target_link_libraries(localization_2d cylbot_mcl)
 
 catkin_add_gtest(pose_cloud_tests test/pose_cloud_tests.cpp)
 target_link_libraries(pose_cloud_tests cylbot_mcl)
+
+catkin_add_gtest(transform_tests test/transform_tests.cpp)
+target_link_libraries(transform_tests ${catkin_LIBRARIES})
