@@ -15,8 +15,8 @@ int main(int argc, char** argv)
 	// fill out the meta-data
 	test_map.info.map_load_time = ros::Time::now();
 	test_map.info.resolution = 0.05f;
-	test_map.info.width = 1000;
-	test_map.info.height = 1000;
+	test_map.info.width = 10;
+	test_map.info.height = 10;
 	test_map.info.origin.position.x = -(test_map.info.resolution*test_map.info.width)/2.0;
 	test_map.info.origin.position.y = -(test_map.info.resolution*test_map.info.height)/2.0;
 	test_map.info.origin.orientation.w = 1.0;

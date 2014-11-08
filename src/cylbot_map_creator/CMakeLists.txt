@@ -71,6 +71,9 @@ target_link_libraries(likelihood_field_generator ${catkin_LIBRARIES} ${YAMLCPP_L
 add_executable(likelihood_field_server src/likelihood_field_server.cpp)
 target_link_libraries(likelihood_field_server ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
 
+add_executable(publish_likelihood_field_as_map src/publish_likelihood_field_as_map)
+target_link_libraries(publish_likelihood_field_as_map ${catkin_LIBRARIES})
+
 #############
 ## Install ##
 #############

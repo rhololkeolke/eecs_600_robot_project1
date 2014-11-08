@@ -89,30 +89,30 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points,
 
 	pose_cloud->sensorUpdate(*pcl_cloud);
 
-	// tf::StampedTransform map_transform;
-	// if(!tf_listener.waitForTransform(
-	// 	   "/map",
-	// 	   "/base_link",
-	// 	   laser_points->header.stamp,
-	// 	   ros::Duration(1.0)))
-	// {
-	// 	ROS_WARN("Transform from /map to /base_link failed");
-	// 	return;
-	// }
-	// tf_listener.lookupTransform("/map", "/base_link", laser_points->header.stamp, map_transform);
+	tf::StampedTransform map_transform;
+	if(!tf_listener.waitForTransform(
+		   "/map",
+		   "/base_link",
+		   laser_points->header.stamp,
+		   ros::Duration(1.0)))
+	{
+		ROS_WARN("Transform from /map to /base_link failed");
+		return;
+	}
+	tf_listener.lookupTransform("/map", "/base_link", laser_points->header.stamp, map_transform);
 
-	// geometry_msgs::Pose true_pose;
-	// tf::pointTFToMsg(map_transform.getOrigin(), true_pose.position);
-	// tf::quaternionTFToMsg(map_transform.getRotation(), true_pose.orientation);
+	geometry_msgs::Pose true_pose;
+	tf::pointTFToMsg(map_transform.getOrigin(), true_pose.position);
+	tf::quaternionTFToMsg(map_transform.getRotation(), true_pose.orientation);
 	
-	// double truePoseProb = pose_cloud->getMeasurementProbability(true_pose, *pcl_cloud, beam_start);
-	// ROS_INFO_STREAM("true pose probability:" << truePoseProb);
+	double truePoseProb = pose_cloud->getMeasurementProbability(true_pose, *pcl_cloud);
+	//ROS_INFO_STREAM("true pose probability:" << truePoseProb);
 
-	// geometry_msgs::Pose fake_pose = true_pose;
-	// fake_pose.position.x *= 1.1;
-	// fake_pose.position.y *= 1.1;
-	// double fakePoseProb = pose_cloud->getMeasurementProbability(fake_pose, *pcl_cloud, beam_start);
-	// ROS_INFO_STREAM("fake pose probability:" << fakePoseProb);
+	geometry_msgs::Pose fake_pose = true_pose;
+	fake_pose.position.x *= 2.1;
+	fake_pose.position.y *= 2.1;
+	double fakePoseProb = pose_cloud->getMeasurementProbability(fake_pose, *pcl_cloud);
+	//ROS_INFO_STREAM("fake pose probability:" << fakePoseProb);
 }
 
 void initialPoseCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& initial_pose,

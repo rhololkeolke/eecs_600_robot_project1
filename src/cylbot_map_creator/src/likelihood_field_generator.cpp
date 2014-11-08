@@ -50,9 +50,9 @@ int main(int argc, char** argv)
 	// first get a list of every occupied cell
 	std::cout << "Finding all of the occupied cells" << std::endl;
 	std::vector<MapCell> occupiedCells;
-	for(int i=0; i<nav_map->info.width; i++)
+	for(int j=0; j<nav_map->info.height; j++)
 	{
-		for(int j=0; j<nav_map->info.height; j++)
+		for(int i=0; i<nav_map->info.width; i++)
 		{
 			int occ = nav_map->data[j*nav_map->info.width + i];
 			if(occ > .5)
@@ -60,11 +60,11 @@ int main(int argc, char** argv)
 		}
 	}
 
-	field.data.resize(nav_map->data.size());
+	field.data.clear();
 	std::cout << "Calculating minimum distances" << std::endl;
-	for(int i=0; i<nav_map->info.width; i++)
+	for(int j=0; j<nav_map->info.height; j++)
 	{
-		for(int j=0; j<nav_map->info.height; j++)
+		for(int i=0; i<nav_map->info.width; i++)
 		{
 			int index = j*nav_map->info.width + i;
 			int progressInterval = (int)(nav_map->data.size()*.1);

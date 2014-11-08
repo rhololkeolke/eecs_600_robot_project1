@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <tf/transform_datatypes.h>
 #include <limits>
+#include <set>
 
 namespace cylbot_mcl
 {
@@ -170,9 +171,9 @@ namespace cylbot_mcl
 				max_weight = prob;
 		}
 
-		ROS_INFO_STREAM("total weight: " << total_weight);
-		ROS_INFO_STREAM("Average prob: " << total_weight/pose_array.poses.size());
-		ROS_INFO_STREAM("Max prob: " << max_weight);
+		// ROS_INFO_STREAM("total weight: " << total_weight);
+		// ROS_INFO_STREAM("Average prob: " << total_weight/pose_array.poses.size());
+		// ROS_INFO_STREAM("Max prob: " << max_weight);
 
 		// normalize
 		for(Weights::iterator weight_pair = pose_weights.begin();
@@ -190,8 +191,8 @@ namespace cylbot_mcl
 		boost::variate_generator<boost::mt19937, boost::random::uniform_real_distribution<> > rand(rng, dist);
 
 		// resample using low variance sampling from table 4.4 on page 110 of the Probabilistic robotics book
-		geometry_msgs::PoseArray::_poses_type poses;
-
+		std::set<geometry_msgs::Pose*> pose_set;
+			
 		double r = rand();
 		double c = pose_weights.begin()->second;
 		int i=0;
@@ -203,12 +204,19 @@ namespace cylbot_mcl
 				i++;
 				c = c + pose_weights[i].second;
 			}
-			poses.push_back(*(pose_weights[i].first));
+			pose_set.insert(&(*(pose_weights[i].first)));
 		}
 
-		// update the main datastructure array
-		pose_array.poses = poses;
+		geometry_msgs::PoseArray::_poses_type poses;
+		for(std::set<geometry_msgs::Pose*>::const_iterator pose = pose_set.begin();
+			pose != pose_set.end();
+			pose++)
+		{
+			poses.push_back(*(*pose));
+		}
 
+		pose_array.poses = poses;
+		ROS_INFO_STREAM("Number of poses: " << pose_array.poses.size());
 	}
 
 	void PoseCloud2D::fieldUpdate(const cylbot_map_creator::LikelihoodField& field)
@@ -252,7 +260,7 @@ namespace cylbot_mcl
 			if(distance == -1)
 				continue;
 			
-			double beam_prob = model.sensor_params.likelihoodProbability(distance);
+			double beam_prob = model.sensor_params.likelihoodProbability(distance)/100.0;
 			probability = probability*beam_prob;
 		}
 		

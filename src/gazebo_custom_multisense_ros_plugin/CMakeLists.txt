@@ -31,6 +31,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${GAZEBO_INCLUDE_DIRS}
+  /usr/include/sdformat-2.2
 )
 
 link_directories(
