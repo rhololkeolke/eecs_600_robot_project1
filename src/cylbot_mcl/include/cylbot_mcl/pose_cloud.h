@@ -52,7 +52,7 @@ namespace cylbot_mcl
 
 		void motionUpdate(const geometry_msgs::Twist& u, double dt);
 
-		void sensorUpdate(const pcl::PointCloud<pcl::PointXYZ>& beam_ends);
+		void sensorUpdate(const pcl::PointCloud<pcl::PointXYZ>& beam_ends, double last_time);
 
 		void fieldUpdate(const cylbot_map_creator::LikelihoodField& field);
 
@@ -60,6 +60,7 @@ namespace cylbot_mcl
 
 	private:
 		int getCellDistance(const int x, const int y);
+		Eigen::MatrixXd generatePoses(const geometry_msgs::PoseWithCovarianceStamped& initial_pose, const int num_particles);
 
 	public:
 		double getMeasurementProbability(const geometry_msgs::Pose& pose,
@@ -73,7 +74,7 @@ namespace cylbot_mcl
 		boost::mt19937 rng;
 		geometry_msgs::Twist last_cmd;
 
-		int num_sensor_updates;
+		double last_sensor_update;
 
 	};
 

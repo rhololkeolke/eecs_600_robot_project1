@@ -87,7 +87,7 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points,
 	invalid_filter.setIndices(invalid_indices);
 	invalid_filter.filter(*pcl_cloud);
 
-	pose_cloud->sensorUpdate(*pcl_cloud);
+	pose_cloud->sensorUpdate(*pcl_cloud, laser_points->header.stamp.toSec());
 
 	tf::StampedTransform map_transform;
 	if(!tf_listener.waitForTransform(

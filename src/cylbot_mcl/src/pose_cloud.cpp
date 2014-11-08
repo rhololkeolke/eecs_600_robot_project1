@@ -22,7 +22,7 @@ namespace cylbot_mcl
 		
 		this->likelihood_field = field;
 
-		num_sensor_updates = 0;
+		last_sensor_update = 0;
 	}
 
 	PoseCloud2D::PoseCloud2D(const RobotModel& model,
@@ -38,10 +38,28 @@ namespace cylbot_mcl
 		
 		this->resetCloud(initial_pose, num_particles);
 
-		num_sensor_updates = 0;
+		last_sensor_update = 0;
 	}
 
 	void PoseCloud2D::resetCloud(const geometry_msgs::PoseWithCovarianceStamped& initial_pose, const int num_particles)
+	{
+		Eigen::MatrixXd samples = generatePoses(initial_pose, num_particles);
+		pose_array.poses.clear();
+		for(int i=0; i<num_particles; i++)
+		{
+			geometry_msgs::Pose pose;
+			pose.position.x = samples(0, i);
+			pose.position.y = samples(1, i);
+			pose.position.z = 0;
+
+			// generate random yaw then convert it to a quaternion
+			pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, samples(2, i));
+		
+			pose_array.poses.push_back(pose);
+		}
+	}
+
+	Eigen::MatrixXd PoseCloud2D::generatePoses(const geometry_msgs::PoseWithCovarianceStamped& initial_pose, const int num_particles)
 	{
 		Eigen::VectorXd mean(3);
 		Eigen::MatrixXd covar(3,3);
@@ -67,20 +85,8 @@ namespace cylbot_mcl
 		}
 		
 		Eigen::MatrixXd samples = (normTransform * Eigen::MatrixXd::NullaryExpr(3, num_particles, randn)).colwise() + mean;
-		
-		pose_array.poses.clear();
-		for(int i=0; i<num_particles; i++)
-		{
-			geometry_msgs::Pose pose;
-			pose.position.x = samples(0, i);
-			pose.position.y = samples(1, i);
-			pose.position.z = 0;
 
-			// generate random yaw then convert it to a quaternion
-			pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, samples(2, i));
-		
-			pose_array.poses.push_back(pose);
-		}
+		return samples;
 	}
 
 	void PoseCloud2D::motionUpdate(const geometry_msgs::Twist& u, double dt)
@@ -121,7 +127,7 @@ namespace cylbot_mcl
 
 	}
 
-	void PoseCloud2D::sensorUpdate(const pcl::PointCloud<pcl::PointXYZ>& beam_ends)
+	void PoseCloud2D::sensorUpdate(const pcl::PointCloud<pcl::PointXYZ>& beam_ends, double curr_time)
 	{
 		// this type is used as a temporary datastructure in this function only
 		// this typedef just saves some typing and makes the later code more readable
@@ -140,10 +146,11 @@ namespace cylbot_mcl
 		if(fabs(last_cmd.linear.y) < 0.1 && fabs(last_cmd.linear.z) < 0.1)
 			return;
 
-		//if(num_sensor_updates++ % 100 != 0)
-		//	return;
+		// update at most every 5 seconds
+		if(curr_time - last_sensor_update < 5)
+			return;
 
-		num_sensor_updates = 0;
+		last_sensor_update = curr_time;
 
 		// store an iterator to a pose along with its computed weight
 		Weights pose_weights;
@@ -216,7 +223,6 @@ namespace cylbot_mcl
 		}
 
 		pose_array.poses = poses;
-		ROS_INFO_STREAM("Number of poses: " << pose_array.poses.size());
 	}
 
 	void PoseCloud2D::fieldUpdate(const cylbot_map_creator::LikelihoodField& field)
