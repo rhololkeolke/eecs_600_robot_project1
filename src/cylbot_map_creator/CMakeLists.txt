@@ -68,6 +68,9 @@ target_link_libraries(my_octomap_saver ${catkin_LIBRARIES} ${OCTOMAP_LIBRARIES})
 add_executable(likelihood_field_generator src/likelihood_field_generator.cpp)
 target_link_libraries(likelihood_field_generator ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
 
+add_executable(likelihood_field_server src/likelihood_field_server.cpp)
+target_link_libraries(likelihood_field_server ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
+
 #############
 ## Install ##
 #############
