@@ -9,7 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
   tf
-  nav_msgs
+  cylbot_map_creator
   pcl_ros
 )
 find_package(Boost REQUIRED)

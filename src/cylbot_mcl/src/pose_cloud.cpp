@@ -7,18 +7,19 @@
 #include <utility>
 #include <algorithm>
 #include <tf/transform_datatypes.h>
+#include <limits>
 
 namespace cylbot_mcl
 {
 	inline int round(const double a) { return int (a + 0.5); }
 	
-	PoseCloud2D::PoseCloud2D(const RobotModel& model, const nav_msgs::OccupancyGrid& map)
+	PoseCloud2D::PoseCloud2D(const RobotModel& model, const cylbot_map_creator::LikelihoodField& field)
 	{
 		this->pose_array.header.frame_id = "/map";
 
 		this->model = model;
 		
-		this->map = map;
+		this->likelihood_field = field;
 
 		num_sensor_updates = 0;
 	}
@@ -26,13 +27,13 @@ namespace cylbot_mcl
 	PoseCloud2D::PoseCloud2D(const RobotModel& model,
 							 const geometry_msgs::PoseWithCovarianceStamped& initial_pose,
 							 const int num_particles,
-							 const nav_msgs::OccupancyGrid& map)
+							 const cylbot_map_creator::LikelihoodField& field)
 	{
 		this->pose_array.header.frame_id = "/map";
 
 		this->model = model;
 
-		this->map = map;
+		this->likelihood_field = field;
 		
 		this->resetCloud(initial_pose, num_particles);
 
@@ -119,8 +120,7 @@ namespace cylbot_mcl
 
 	}
 
-	void PoseCloud2D::sensorUpdate(const pcl::PointCloud<pcl::PointXYZ>& beam_ends,
-								   const tf::Vector3& beam_start)
+	void PoseCloud2D::sensorUpdate(const pcl::PointCloud<pcl::PointXYZ>& beam_ends)
 	{
 		// this type is used as a temporary datastructure in this function only
 		// this typedef just saves some typing and makes the later code more readable
@@ -130,7 +130,7 @@ namespace cylbot_mcl
 		typedef std::vector<WeightPair> Weights;
 		
 		// if we haven't set a map yet then don't do anything
-		if(map.data.size() == 0)
+		if(likelihood_field.data.size() == 0)
 			return;
 		
 		// don't perform sensor updates unless moving
@@ -162,7 +162,7 @@ namespace cylbot_mcl
 			pose != pose_array.poses.end();
 			pose++)
 		{
-			double prob = getMeasurementProbability(*pose, beam_ends, beam_start);
+			double prob = getMeasurementProbability(*pose, beam_ends);
 			pose_weights.push_back(std::make_pair(pose, prob));
 			total_weight += prob;
 
@@ -211,9 +211,9 @@ namespace cylbot_mcl
 
 	}
 
-	void PoseCloud2D::mapUpdate(const nav_msgs::OccupancyGrid& map)
+	void PoseCloud2D::fieldUpdate(const cylbot_map_creator::LikelihoodField& field)
 	{
-		this->map = map;
+		this->likelihood_field = field;
 	}
 
 	geometry_msgs::PoseArray PoseCloud2D::getPoses()
@@ -222,181 +222,49 @@ namespace cylbot_mcl
 	}
 
 	double PoseCloud2D::getMeasurementProbability(const geometry_msgs::Pose& pose,
-												  const pcl::PointCloud<pcl::PointXYZ>& beam_ends,
-												  const tf::Vector3 beam_start)
+												  const pcl::PointCloud<pcl::PointXYZ>& beam_ends)
 	{
-
-		const double occ_threshold = .5;
 		double probability = 1.0;
-		double total_probability = 0;
 
-		int x_origin = (int)fabs(map.info.origin.position.x/map.info.resolution);
-		int y_origin = (int)fabs(map.info.origin.position.y/map.info.resolution);
+		int x_origin = (int)fabs(likelihood_field.info.origin.position.x/likelihood_field.info.resolution);
+		int y_origin = (int)fabs(likelihood_field.info.origin.position.y/likelihood_field.info.resolution);
 
-		//ROS_INFO("x_origin: %d y_origin: %d width: %d height: %d", x_origin, y_origin, map.info.width, map.info.height);
-
-		// construct the transform from the map to the pose
+		// construct transfrom from map to estimated pose
 		tf::Transform pose_transform;
 		pose_transform.setOrigin(tf::Vector3(pose.position.x, pose.position.y, pose.position.z));
 		tf::Quaternion pose_rotation;
 		tf::quaternionMsgToTF(pose.orientation, pose_rotation);
 		pose_transform.setRotation(pose_rotation);
 
-		// transform the beam_start to the estimated map frame
-		tf::Vector3 map_beam_start = pose_transform(beam_start);
-		map_beam_start.setZ(0);
-
-		//ROS_INFO("map_beam_start: (%3.3f, %3.3f, %3.3f)", map_beam_start.getX(), map_beam_start.getY(), map_beam_start.getZ());
-
-		// for(int i=0; i<map.info.width; i++)
-		// {
-		// 	for(int j=0; j<map.info.height; j++)
-		// 	{
-		// 		int occ = getCellOccupancy(i,j);
-		// 		if(occ != 0)
-		// 		{
-		// 			ROS_INFO("(%d, %d) has occupancy: %d", i, j, occ);
-		// 		}
-		// 	}
-		// }
-
-		int num_points = 0;
-		for(pcl::PointCloud<pcl::PointXYZ>::const_iterator beam_end = beam_ends.begin();
-			beam_end != beam_ends.end();
+		for(pcl::PointCloud<pcl::PointXYZ>::const_iterator beam_end = beam_ends.points.begin();
+			beam_end != beam_ends.points.end();
 			beam_end++)
 		{
-			if(num_points++ > 1)
-				break;
-			// transform the point to the estimated map frame
+
 			tf::Vector3 map_beam_end = pose_transform(tf::Vector3(beam_end->x, beam_end->y, beam_end->z));
-			map_beam_end.setZ(0);
+			
+			// convert to grid coordinates
+			int x = map_beam_end.getX()/likelihood_field.info.resolution;
+			int y = map_beam_end.getY()/likelihood_field.info.resolution;
+			double distance = getCellDistance(round(x) + x_origin, round(y) + y_origin);
 
-			int end_coord_x = (int)(map_beam_end.getX()/map.info.resolution) + x_origin;
-			int end_coord_y = (int)(map_beam_end.getY()/map.info.resolution) + y_origin;
-			int endocc = getCellOccupancy(end_coord_x, end_coord_y);
-
-			double beam_length = map_beam_end.distance(map_beam_start);
-
-			//ROS_INFO("beam_length: %3.3f", beam_length);
-			if(beam_length != beam_length)
-			{
-				ROS_INFO_STREAM("beam_end: " << *beam_end);
-				ROS_INFO_STREAM("beam_start: " << beam_start);
-				ROS_INFO_STREAM("map_beam_end: " << map_beam_end);
-				ROS_INFO_STREAM("map_beam_start: " << map_beam_start);
-			}
-
-			tf::Vector3 map_beam_dir = (map_beam_end - map_beam_start).normalize();
-			map_beam_dir *= 30.0;
-
-			tf::Vector3 max_end = map_beam_dir + map_beam_start;
-				
-			int dx = (int)((max_end.getX() - map_beam_start.getX())/map.info.resolution);
-			int dy = (int)((max_end.getY() - map_beam_start.getY())/map.info.resolution);
-			int steps;
-
-			double xIncrement, yIncrement;
-			double x = map_beam_start.getX()/map.info.resolution;
-			double y = map_beam_start.getY()/map.info.resolution;
-
-			if(fabs(dx) > fabs(dy))
-				steps = fabs(dx);
-			else
-				steps = fabs(dy);
-
-			xIncrement = ((double)dx)/((double)steps);
-			yIncrement = ((double)dy)/((double)steps);
-
-
-			int occ = getCellOccupancy(round(x) + x_origin, round(y) + y_origin);
-			//ROS_INFO("occ: %d", occ);
-			if(occ > occ_threshold)
-			{
-//				ROS_INFO("Hit occupied cell");
-				double end_x = x*map.info.resolution;
-				double end_y = y*map.info.resolution;
-
-				double x_diff = end_x - map_beam_start.getX();
-				double y_diff = end_y - map_beam_start.getY();
-				
-				double map_dist = sqrt(x_diff*x_diff + y_diff*y_diff);
-
-				if(beam_length != beam_length)
-					ROS_INFO("beam_length is NaN!");
-				if(map_dist != map_dist)
-					ROS_INFO("map_dist is NaN!");
-
-				double prob = model.sensor_params.measurementProbability(beam_length, map_dist)/100.0;
-				// if(prob < .001)
-				// {
-				// 	ROS_INFO("x: %3.3f y: %3.3f beam length: %3.3f, map_dist: %3.3f, prob: %f", end_x, end_y, beam_length, map_dist, prob);
-				// }
-				total_probability += prob;
-				probability *= prob;
+			// lookup failed so skip this beam
+			if(distance == -1)
 				continue;
-			}
-			bool hitOccupied = false;
-			for(int k=0; k<steps-1; k++)
-			{
-				x += xIncrement;
-				y += yIncrement;
-
-				int occ = getCellOccupancy(round(x)+x_origin, round(y)+y_origin);
-//				ROS_INFO("occ: %d", occ);
-				if(occ > occ_threshold)
-				{
-					//ROS_INFO("Hit occupied cell");
-					double end_x = x*map.info.resolution;
-					double end_y = y*map.info.resolution;
-					double x_diff = end_x - map_beam_start.getX();
-					double y_diff = end_y - map_beam_start.getY();
-
-					double map_dist = sqrt(x_diff*x_diff + y_diff*y_diff);
-
-					if(beam_length != beam_length)
-						ROS_INFO("beam_length is NaN!");
-					if(map_dist != map_dist)
-						ROS_INFO("map_dist is NaN!");
-
-					double prob = model.sensor_params.measurementProbability(beam_length, map_dist)/100.0;
-					// if(prob < .001)
-					// {
-					// 	ROS_INFO("x: %3.3f y: %3.3f beam length: %3.3f, map_dist: %3.3f, prob: %f", end_x, end_y, beam_length, map_dist, prob);
-					// }
-					total_probability += prob;
-					probability *= prob;
-
-					hitOccupied = true;
-					break;
-				}
-			}
-
-			// if no cell along the ray was hit then the distance should be the max sensor reading
-			if(!hitOccupied)
-			{
-				double prob = model.sensor_params.measurementProbability(beam_length, 30.0)/100.0;
-				// if(prob < .001)
-				// {
-				// 	ROS_INFO("beam length: %3.3f, map_dist: %3.3f, prob: %f", beam_length, 30.0, prob);
-				// }
-				total_probability += prob;
-				probability *= prob;
-
-			}
+			
+			double beam_prob = model.sensor_params.likelihoodProbability(distance);
+			probability = probability*beam_prob;
 		}
-
-		//ROS_INFO_STREAM("average probability:" << total_probability/beam_ends.points.size());
-
-		//ROS_INFO_STREAM("probability:" << probability);
+		
 		return probability;
 	}
 
-	int PoseCloud2D::getCellOccupancy(const int x, const int y)
+	int PoseCloud2D::getCellDistance(const int x, const int y)
 	{
-		if(x < map.info.width && x >= 0 &&
-		   y < map.info.height && y >= 0)
+		if(x < likelihood_field.info.width && x >= 0 &&
+		   y < likelihood_field.info.height && y >= 0)
 		{
-			return map.data[y*map.info.width + x];
+			return likelihood_field.data[y*likelihood_field.info.width + x];
 		}
 
 		return -1;

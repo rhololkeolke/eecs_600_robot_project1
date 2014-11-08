@@ -16,7 +16,7 @@
 using namespace multisense_sensor_model;
 using namespace cylbot_mcl;
 
-ros::Subscriber map_sub;
+ros::Subscriber field_sub;
 
 void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points,
 				   const tf::TransformListener& tf_listener,
@@ -87,7 +87,7 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points,
 	invalid_filter.setIndices(invalid_indices);
 	invalid_filter.filter(*pcl_cloud);
 
-	pose_cloud->sensorUpdate(*pcl_cloud, beam_start);
+	pose_cloud->sensorUpdate(*pcl_cloud);
 
 	// tf::StampedTransform map_transform;
 	// if(!tf_listener.waitForTransform(
@@ -137,12 +137,12 @@ void velocityCallback(const geometry_msgs::TwistStamped::ConstPtr& twist_msg,
 	pose_cloud->motionUpdate(twist_msg->twist, dt.toSec());
 }
 
-void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& map,
+void fieldCallback(const cylbot_map_creator::LikelihoodField::ConstPtr& field,
 				 PoseCloud2D* pose_cloud)
 {
-	pose_cloud->mapUpdate(*map);
+	pose_cloud->fieldUpdate(*field);
 
-	map_sub.shutdown();
+	field_sub.shutdown();
 }
 					  
 
@@ -189,7 +189,7 @@ int main(int argc, char** argv)
 																					&pose_cloud,
 																					boost::ref(last_velocity)));
 
-	map_sub = nh.subscribe<nav_msgs::OccupancyGrid>("/map", 1, boost::bind(mapCallback, _1, &pose_cloud));
+	field_sub = nh.subscribe<cylbot_map_creator::LikelihoodField>("/likelihood_field", 1, boost::bind(fieldCallback, _1, &pose_cloud));
 
 	ros::Publisher pose_array_pub = nh.advertise<geometry_msgs::PoseArray>("/pose_cloud", 1);
 

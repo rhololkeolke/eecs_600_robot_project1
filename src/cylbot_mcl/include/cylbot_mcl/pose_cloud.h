@@ -6,7 +6,7 @@
 #include <geometry_msgs/Twist.h>
 #include <pcl_ros/point_cloud.h>
 #include <tf/transform_datatypes.h>
-#include <nav_msgs/OccupancyGrid.h>
+#include <cylbot_map_creator/LikelihoodField.h>
 #include <cylbot_motion_model/multivariate_normal.h>
 #include <boost/random.hpp>
 #include <multisense_sensor_model/sensor_model.h>
@@ -41,34 +41,33 @@ namespace cylbot_mcl
 	class PoseCloud2D
 	{
 	public:
-		PoseCloud2D(const RobotModel& model, const nav_msgs::OccupancyGrid& map=nav_msgs::OccupancyGrid());
+		PoseCloud2D(const RobotModel& model, 
+					const cylbot_map_creator::LikelihoodField& field=cylbot_map_creator::LikelihoodField());
 		PoseCloud2D(const RobotModel& model,
 					const geometry_msgs::PoseWithCovarianceStamped& initial_pose,
 					const int num_particles=1000,
-					const nav_msgs::OccupancyGrid& map=nav_msgs::OccupancyGrid());
+					const cylbot_map_creator::LikelihoodField& field=cylbot_map_creator::LikelihoodField());
 		
 		void resetCloud(const geometry_msgs::PoseWithCovarianceStamped& initial_pose, const int num_particles=1000);
 
 		void motionUpdate(const geometry_msgs::Twist& u, double dt);
 
-		void sensorUpdate(const pcl::PointCloud<pcl::PointXYZ>& beam_ends,
-						  const tf::Vector3& beam_start);
+		void sensorUpdate(const pcl::PointCloud<pcl::PointXYZ>& beam_ends);
 
-		void mapUpdate(const nav_msgs::OccupancyGrid& map);
+		void fieldUpdate(const cylbot_map_creator::LikelihoodField& field);
 
 		geometry_msgs::PoseArray getPoses();
 
 	private:
-		int getCellOccupancy(const int x, const int y);
+		int getCellDistance(const int x, const int y);
 
 	public:
 		double getMeasurementProbability(const geometry_msgs::Pose& pose,
-										 const pcl::PointCloud<pcl::PointXYZ>& beam_ends,
-										 const tf::Vector3 beam_start);
+										 const pcl::PointCloud<pcl::PointXYZ>& beam_ends);
 
 	private:
 		RobotModel model;
-		nav_msgs::OccupancyGrid map;
+		cylbot_map_creator::LikelihoodField likelihood_field;
 		geometry_msgs::PoseArray pose_array;
 		Eigen::internal::scalar_normal_dist_op<double> randn;
 		boost::mt19937 rng;
