@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(cylbot_map_creator)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -13,8 +15,17 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   octomap_msgs
   octomap_ros
+  message_generation
 )
 find_package(octomap REQUIRED)
+find_package(YamlCpp REQUIRED)
+
+add_message_files(FILES LikelihoodField.msg)
+
+generate_messages(
+  DEPENDENCIES
+  nav_msgs
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -28,7 +39,7 @@ find_package(octomap REQUIRED)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES cylbot_map_creator
-#  CATKIN_DEPENDS nav_msgs roscpp sensor_msgs
+  CATKIN_DEPENDS message_runtime
   DEPENDS octomap
 )
 
@@ -39,6 +50,7 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${OCTOMAP_INCLUDE_DIRS}
+  ${YAMLCPP_INCLUDE_DIR}
 )
 
 add_executable(test_map_publisher src/test_map_publisher.cpp)
@@ -52,6 +64,9 @@ target_link_libraries(octomap_creator ${catkin_LIBRARIES} ${OCTOMAP_LIBRARIES})
 
 add_executable(my_octomap_saver src/octomap_saver.cpp)
 target_link_libraries(my_octomap_saver ${catkin_LIBRARIES} ${OCTOMAP_LIBRARIES})
+
+add_executable(likelihood_field_generator src/likelihood_field_generator.cpp)
+target_link_libraries(likelihood_field_generator ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
 
 #############
 ## Install ##

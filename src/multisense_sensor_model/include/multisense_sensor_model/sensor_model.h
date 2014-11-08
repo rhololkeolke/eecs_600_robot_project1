@@ -19,6 +19,13 @@ namespace multisense_sensor_model
 				converged = false;
 		}
 
+		double likelihoodProbability(const double distance)
+			{
+				boost::math::normal_distribution<> distr(0, sigma_hit);
+
+				return zhit*boost::math::pdf(distr, distance) + zrand/zmax;
+			}
+
 		double measurementProbability(const double sensor_value,
 									  const double map_value)
 			{
