@@ -53,7 +53,9 @@ namespace cylbot_mcl
 
 		void motionUpdate(const geometry_msgs::Twist& u, double dt);
 
-		void sensorUpdate(const pcl::PointCloud<pcl::PointXYZ>& beam_ends, double curr_time);
+		void sensorUpdate(const geometry_msgs::Pose map_pose,
+						  const pcl::PointCloud<pcl::PointXYZ>& beam_ends,
+						  double curr_time);
 
 		void fieldUpdate(const cylbot_map_creator::LikelihoodField& field);
 
@@ -67,7 +69,8 @@ namespace cylbot_mcl
 													  const int num_poses);
 
 	public:
-		double getMeasurementProbability(const geometry_msgs::Pose& pose,
+		double getMeasurementProbability(const geometry_msgs::Pose& map_pose,
+										 const geometry_msgs::Pose& pose,
 										 const pcl::PointCloud<pcl::PointXYZ>& beam_ends);
 
 	private:
