@@ -23,6 +23,13 @@ namespace cylbot_mcl
 		this->likelihood_field = field;
 
 		last_sensor_update = 0;
+
+		w_slow = w_fast = 0;
+		alpha_slow = .1;
+		alpha_fast = 1;
+
+		pose_array.poses = generateUniformPoses(std::make_pair(-20.0, 20.0),
+												std::make_pair(-20.0, 20.0), 10000).poses;
 	}
 
 	PoseCloud2D::PoseCloud2D(const RobotModel& model,
@@ -39,27 +46,22 @@ namespace cylbot_mcl
 		this->resetCloud(initial_pose, num_particles);
 
 		last_sensor_update = 0;
+
+		w_slow = w_fast = 0;
+		alpha_slow = .1;
+		alpha_fast = 1;
+
+		pose_array.poses = generateUniformPoses(std::make_pair(-20.0, 20.0),
+												std::make_pair(-20.0, 20.0), 10000).poses;
 	}
 
 	void PoseCloud2D::resetCloud(const geometry_msgs::PoseWithCovarianceStamped& initial_pose, const int num_particles)
 	{
-		Eigen::MatrixXd samples = generatePoses(initial_pose, num_particles);
-		pose_array.poses.clear();
-		for(int i=0; i<num_particles; i++)
-		{
-			geometry_msgs::Pose pose;
-			pose.position.x = samples(0, i);
-			pose.position.y = samples(1, i);
-			pose.position.z = 0;
-
-			// generate random yaw then convert it to a quaternion
-			pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, samples(2, i));
-		
-			pose_array.poses.push_back(pose);
-		}
+		pose_array.poses = generatePoses(initial_pose, num_particles).poses;
 	}
 
-	Eigen::MatrixXd PoseCloud2D::generatePoses(const geometry_msgs::PoseWithCovarianceStamped& initial_pose, const int num_particles)
+	geometry_msgs::PoseArray PoseCloud2D::generatePoses(const geometry_msgs::PoseWithCovarianceStamped& initial_pose,
+														const int num_particles)
 	{
 		Eigen::VectorXd mean(3);
 		Eigen::MatrixXd covar(3,3);
@@ -86,7 +88,49 @@ namespace cylbot_mcl
 		
 		Eigen::MatrixXd samples = (normTransform * Eigen::MatrixXd::NullaryExpr(3, num_particles, randn)).colwise() + mean;
 
-		return samples;
+		geometry_msgs::PoseArray new_pose_array;
+		for(int i=0; i<num_particles; i++)
+		{
+			geometry_msgs::Pose pose;
+			pose.position.x = samples(0, i);
+			pose.position.y = samples(1, i);
+			pose.position.z = 0;
+
+			// generate random yaw then convert it to a quaternion
+			pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, samples(2, i));
+		
+			new_pose_array.poses.push_back(pose);
+		}
+
+		
+		return new_pose_array;
+	}
+
+	geometry_msgs::PoseArray PoseCloud2D::generateUniformPoses(const std::pair<double, double> x_range,
+															   const std::pair<double, double> y_range,
+															   const int num_poses)
+	{
+		boost::random::uniform_real_distribution<> x_dist(x_range.first, x_range.second);
+		boost::random::uniform_real_distribution<> y_dist(y_range.first, y_range.second);
+		boost::random::uniform_real_distribution<> yaw_dist(0.0, 2*3.14159);
+
+		boost::variate_generator<boost::mt19937, boost::random::uniform_real_distribution<> > x_rand(rng, x_dist);
+		boost::variate_generator<boost::mt19937, boost::random::uniform_real_distribution<> > yaw_rand(rng, yaw_dist);
+		
+		geometry_msgs::PoseArray new_pose_array;
+		for(int i=0; i<num_poses; i++)
+		{
+			geometry_msgs::Pose pose;
+			pose.position.x = x_rand();
+			pose.position.y = x_rand();
+			pose.position.z = 0;
+
+			pose.orientation = tf::createQuaternionMsgFromYaw(yaw_rand());
+
+			new_pose_array.poses.push_back(pose);
+		}
+
+		return new_pose_array;
 	}
 
 	void PoseCloud2D::motionUpdate(const geometry_msgs::Twist& u, double dt)
@@ -177,10 +221,13 @@ namespace cylbot_mcl
 			if(prob > max_weight)
 				max_weight = prob;
 		}
+		double avg_weight = total_weight/pose_array.poses.size();
 
-		// ROS_INFO_STREAM("total weight: " << total_weight);
-		// ROS_INFO_STREAM("Average prob: " << total_weight/pose_array.poses.size());
-		// ROS_INFO_STREAM("Max prob: " << max_weight);
+		w_slow = w_slow + alpha_slow*(avg_weight - w_slow);
+		w_fast = w_fast + alpha_fast*(avg_weight - w_fast);
+		ROS_INFO_STREAM("total weight: " << total_weight);
+		ROS_INFO_STREAM("Average prob: " << total_weight/pose_array.poses.size());
+		ROS_INFO_STREAM("Max prob: " << max_weight);
 
 		// normalize
 		for(Weights::iterator weight_pair = pose_weights.begin();
@@ -195,11 +242,14 @@ namespace cylbot_mcl
 
 		// create prob generator
 		boost::random::uniform_real_distribution<> dist(0.0, 1.0/M);
+		boost::random::uniform_real_distribution<> new_sample_dist(0.0, 1.0);
 		boost::variate_generator<boost::mt19937, boost::random::uniform_real_distribution<> > rand(rng, dist);
+		boost::variate_generator<boost::mt19937, boost::random::uniform_real_distribution<> > new_sample_rand(rng, new_sample_dist);
 
 		// resample using low variance sampling from table 4.4 on page 110 of the Probabilistic robotics book
 		std::set<geometry_msgs::Pose*> pose_set;
-			
+		geometry_msgs::PoseArray::_poses_type poses;
+		
 		double r = rand();
 		double c = pose_weights.begin()->second;
 		int i=0;
@@ -211,10 +261,18 @@ namespace cylbot_mcl
 				i++;
 				c = c + pose_weights[i].second;
 			}
-			pose_set.insert(&(*(pose_weights[i].first)));
+			if(new_sample_rand() < 1.0 - w_fast/w_slow)
+			{
+				poses.push_back(generateUniformPoses(std::make_pair(-20.0, 20.0),
+													 std::make_pair(-20.0, 20.0),
+													 1).poses[0]);
+			}
+			else
+			{
+				pose_set.insert(&(*(pose_weights[i].first)));
+			}
 		}
 
-		geometry_msgs::PoseArray::_poses_type poses;
 		for(std::set<geometry_msgs::Pose*>::const_iterator pose = pose_set.begin();
 			pose != pose_set.end();
 			pose++)

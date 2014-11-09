@@ -11,6 +11,7 @@
 #include <boost/random.hpp>
 #include <multisense_sensor_model/sensor_model.h>
 #include <boost/array.hpp>
+#include <utility>
 
 namespace cylbot_mcl
 {
@@ -52,7 +53,7 @@ namespace cylbot_mcl
 
 		void motionUpdate(const geometry_msgs::Twist& u, double dt);
 
-		void sensorUpdate(const pcl::PointCloud<pcl::PointXYZ>& beam_ends, double last_time);
+		void sensorUpdate(const pcl::PointCloud<pcl::PointXYZ>& beam_ends, double curr_time);
 
 		void fieldUpdate(const cylbot_map_creator::LikelihoodField& field);
 
@@ -60,7 +61,10 @@ namespace cylbot_mcl
 
 	private:
 		int getCellDistance(const int x, const int y);
-		Eigen::MatrixXd generatePoses(const geometry_msgs::PoseWithCovarianceStamped& initial_pose, const int num_particles);
+		geometry_msgs::PoseArray generatePoses(const geometry_msgs::PoseWithCovarianceStamped& initial_pose, const int num_particles);
+		geometry_msgs::PoseArray generateUniformPoses(const std::pair<double, double> x_range,
+													  const std::pair<double, double> y_range,
+													  const int num_poses);
 
 	public:
 		double getMeasurementProbability(const geometry_msgs::Pose& pose,
@@ -75,6 +79,8 @@ namespace cylbot_mcl
 		geometry_msgs::Twist last_cmd;
 
 		double last_sensor_update;
+		double w_slow, w_fast;
+		double alpha_slow, alpha_fast;
 
 	};
 
