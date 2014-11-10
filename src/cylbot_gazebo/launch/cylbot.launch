@@ -17,6 +17,12 @@
 
   <group if="$(arg use_map)">
 	<node name="map_server" pkg="map_server" type="map_server" args="$(arg world_location)/maps/$(arg world_name)_map.yaml" output="screen"/>
+	<node name="likelihood_field_server" pkg="cylbot_map_creator" type="likelihood_field_server">
+	  <param name="field_file" type="string" value="$(arg world_location)/likelihoods/$(arg world_name)_likelihood.yaml"/>
+	</node>
+	<node name="likelihood_field_as_map" pkg="cylbot_map_creator" type="publish_likelihood_field_as_map">
+	  <param name="params_file" type="string" value="$(find multisense_sensor_model)/params/sensor_params_large_sigma.yaml"/>
+	</node>
   </group>
 
   <!-- We resume the logic in empty_world.launch, changing only the name of the world to be launched -->

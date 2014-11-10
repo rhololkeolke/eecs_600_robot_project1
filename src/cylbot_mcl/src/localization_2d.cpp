@@ -106,15 +106,17 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points,
 	tf::quaternionTFToMsg(map_transform.getRotation(), true_pose.orientation);
 
 	pose_cloud->sensorUpdate(true_pose, *pcl_cloud, laser_points->header.stamp.toSec());
-	
-	double truePoseProb = pose_cloud->getMeasurementProbability(true_pose, true_pose, *pcl_cloud);
-	//ROS_INFO_STREAM("true pose probability:" << truePoseProb);
+
+	//ROS_DEBUG("Starting true pose probability calculation");
+	//double truePoseProb = pose_cloud->getMeasurementProbability(true_pose, true_pose, *pcl_cloud);
+	//ROS_DEBUG_STREAM("true pose probability:" << truePoseProb);
 
 	geometry_msgs::Pose fake_pose = true_pose;
 	fake_pose.position.x *= 2.1;
 	fake_pose.position.y *= 2.1;
-	double fakePoseProb = pose_cloud->getMeasurementProbability(true_pose, fake_pose, *pcl_cloud);
-	//ROS_INFO_STREAM("fake pose probability:" << fakePoseProb);
+	//ROS_DEBUG("Starting fake pose probability calculation");
+	//double fakePoseProb = pose_cloud->getMeasurementProbability(true_pose, fake_pose, *pcl_cloud);
+	//ROS_DEBUG_STREAM("fake pose probability:" << fakePoseProb);
 }
 
 void initialPoseCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& initial_pose,
@@ -171,6 +173,12 @@ int main(int argc, char** argv)
 	}
 
 	RobotModel model(sensor_params);
+	
+	for(int i=0; i<model.alpha.size(); i++)
+	{
+		model.alpha[i] = .01;
+	}
+	
 	PoseCloud2D pose_cloud(model);
 
 	ros::Subscriber laser_sub = nh.subscribe<sensor_msgs::PointCloud2>("/laser/points", 1,
@@ -182,10 +190,10 @@ int main(int argc, char** argv)
 																							  boost::bind(initialPoseCallback,
 																										  _1,
 																										  &pose_cloud,
-																										  10000));
+																										  1000));
 
 	geometry_msgs::TwistStamped::ConstPtr last_velocity;
-	ros::Subscriber vel_sub = nh.subscribe<geometry_msgs::TwistStamped>("/cylbot/velocity", 1,
+	ros::Subscriber vel_sub = nh.subscribe<geometry_msgs::TwistStamped>("/cylbot/velocity", 100,
 																		boost::bind(velocityCallback,
 																					_1,
 																					&pose_cloud,

@@ -29,7 +29,7 @@ namespace cylbot_mcl
 		alpha_fast = 1;
 
 		pose_array.poses = generateUniformPoses(std::make_pair(-20.0, 20.0),
-												std::make_pair(-20.0, 20.0), 100000).poses;
+												std::make_pair(-20.0, 20.0), 10000).poses;
 	}
 
 	PoseCloud2D::PoseCloud2D(const RobotModel& model,
@@ -52,7 +52,7 @@ namespace cylbot_mcl
 		alpha_fast = 1;
 
 		pose_array.poses = generateUniformPoses(std::make_pair(-20.0, 20.0),
-												std::make_pair(-20.0, 20.0), 100000).poses;
+												std::make_pair(-20.0, 20.0), 10000).poses;
 	}
 
 	void PoseCloud2D::resetCloud(const geometry_msgs::PoseWithCovarianceStamped& initial_pose, const int num_particles)
@@ -203,6 +203,10 @@ namespace cylbot_mcl
 		double total_weight = 0;
 		double max_weight = 0;
 
+		//ROS_INFO("Starting calculation of true pose probability");
+		double true_prob = getMeasurementProbability(map_pose, map_pose, beam_ends);
+		ROS_INFO_STREAM("Finished calculation of true pose probability " << true_prob);
+
 		// for(pcl::PointCloud<pcl::PointXYZ>::const_iterator beam_end = beam_ends.points.begin();
 		// 	beam_end != beam_ends.points.end();
 		// 	beam_end++)
@@ -212,6 +216,7 @@ namespace cylbot_mcl
 		// }
 
 		// calculate the weight of each pose particle
+		//ROS_INFO("Starting calculation of pose cloud probabilities");
 		for(geometry_msgs::PoseArray::_poses_type::iterator pose = pose_array.poses.begin();
 			pose != pose_array.poses.end();
 			pose++)
@@ -223,6 +228,7 @@ namespace cylbot_mcl
 			if(prob > max_weight)
 				max_weight = prob;
 		}
+		//ROS_INFO_STREAM("Finished calculation of pose cloud probabilities");
 		double avg_weight = total_weight/pose_array.poses.size();
 
 		w_slow = w_slow + alpha_slow*(avg_weight - w_slow);
@@ -263,6 +269,7 @@ namespace cylbot_mcl
 				i++;
 				c = c + pose_weights[i].second;
 			}
+
 			// if(new_sample_rand() < 1.0 - w_fast/w_slow)
 			// {
 			// 	poses.push_back(generateUniformPoses(std::make_pair(-20.0, 20.0),
@@ -270,9 +277,10 @@ namespace cylbot_mcl
 			// 										 1).poses[0]);
 			// }
 			// else
-			{
+			// {
 				pose_set.insert(&(*(pose_weights[i].first)));
-			}
+				// poses.push_back(*(pose_weights[i].first));				
+			// }
 		}
 
 		for(std::set<geometry_msgs::Pose*>::const_iterator pose = pose_set.begin();
@@ -281,6 +289,10 @@ namespace cylbot_mcl
 		{
 			poses.push_back(*(*pose));
 		}
+
+		geometry_msgs::Pose rotated_map_pose = map_pose;
+		rotated_map_pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, tf::getYaw(map_pose.orientation) + 3.14159/2.0);
+		poses.push_back(rotated_map_pose);
 
 		pose_array.poses = poses;
 	}
@@ -299,50 +311,57 @@ namespace cylbot_mcl
 												  const geometry_msgs::Pose& pose,
 												  const pcl::PointCloud<pcl::PointXYZ>& beam_ends)
 	{
-		double x_diff = pose.position.x - map_pose.position.x;
-		double y_diff = pose.position.y - map_pose.position.y;
-		double distance = sqrt(x_diff*x_diff + y_diff*y_diff);
-		double yaw_diff = fmod(fabs(tf::getYaw(pose.orientation) - tf::getYaw(map_pose.orientation)), 3.14159/2.0);
+		// double x_diff = pose.position.x - map_pose.position.x;
+		// double y_diff = pose.position.y - map_pose.position.y;
+		// double distance = sqrt(x_diff*x_diff + y_diff*y_diff);
+		// double yaw_diff = fmod(fabs(tf::getYaw(pose.orientation) - tf::getYaw(map_pose.orientation)), 3.14159/2.0);
 
-		// will return a higher probability for poses closer to the true pose
-		if(distance + yaw_diff == 0)
-			return std::numeric_limits<double>::max();
-		else
-			return 1.0/(distance + yaw_diff);
+		// // will return a higher probability for poses closer to the true pose
+		// if(distance + yaw_diff == 0)
+		// 	return std::numeric_limits<double>::max();
+		// else
+		// 	return 1.0/(distance + yaw_diff);
 		
-		// double probability = 1.0;
+		double probability = 1.0;
 
-		// int x_origin = (int)fabs(likelihood_field.info.origin.position.x/likelihood_field.info.resolution);
-		// int y_origin = (int)fabs(likelihood_field.info.origin.position.y/likelihood_field.info.resolution);
+		int x_origin = (int)fabs(likelihood_field.info.origin.position.x/likelihood_field.info.resolution);
+		int y_origin = (int)fabs(likelihood_field.info.origin.position.y/likelihood_field.info.resolution);
 
-		// // construct transfrom from map to estimated pose
-		// tf::Transform pose_transform;
-		// pose_transform.setOrigin(tf::Vector3(pose.position.x, pose.position.y, pose.position.z));
-		// tf::Quaternion pose_rotation;
-		// tf::quaternionMsgToTF(pose.orientation, pose_rotation);
-		// pose_transform.setRotation(pose_rotation);
+		// construct transfrom from map to estimated pose
+		tf::Transform pose_transform;
+		pose_transform.setOrigin(tf::Vector3(pose.position.x, pose.position.y, pose.position.z));
+		tf::Quaternion pose_rotation;
+		tf::quaternionMsgToTF(pose.orientation, pose_rotation);
+		pose_transform.setRotation(pose_rotation);
 
-		// for(pcl::PointCloud<pcl::PointXYZ>::const_iterator beam_end = beam_ends.points.begin();
-		// 	beam_end != beam_ends.points.end();
-		// 	beam_end++)
-		// {
+		//ROS_INFO("Starting scan probability calculation");
+		for(pcl::PointCloud<pcl::PointXYZ>::const_iterator beam_end = beam_ends.points.begin();
+			beam_end != beam_ends.points.end();
+			beam_end++)
+		{
 
-		// 	tf::Vector3 map_beam_end = pose_transform(tf::Vector3(beam_end->x, beam_end->y, beam_end->z));
+			tf::Vector3 map_beam_end = pose_transform(tf::Vector3(beam_end->x, beam_end->y, beam_end->z));
 			
-		// 	// convert to grid coordinates
-		// 	int x = map_beam_end.getX()/likelihood_field.info.resolution;
-		// 	int y = map_beam_end.getY()/likelihood_field.info.resolution;
-		// 	double distance = getCellDistance(round(x) + x_origin, round(y) + y_origin);
+			// convert to grid coordinates
+			int x = round(map_beam_end.getX()/likelihood_field.info.resolution);
+			int y = round(map_beam_end.getY()/likelihood_field.info.resolution);
+			double distance = getCellDistance(x + x_origin, y + y_origin);
 
-		// 	// lookup failed so skip this beam
-		// 	if(distance == -1)
-		// 		continue;
+			//ROS_INFO_STREAM("distance:" << distance);
+
+			// lookup failed so skip this beam
+			if(distance == -1)
+			{
+				//ROS_INFO("Failed to lookup point so ignoring point (%d, %d) -- (%d, %d)", x, y, x + x_origin, y + y_origin);
+				probability = 1.0/model.sensor_params.zmax;
+			}
 			
-		// 	double beam_prob = model.sensor_params.likelihoodProbability(distance)/100.0;
-		// 	probability = probability*beam_prob;
-		// }
-		
-		// return probability;
+			double beam_prob = model.sensor_params.likelihoodProbability(distance)/100.0;
+			probability = probability*beam_prob;
+		}
+
+		//ROS_INFO_STREAM("Finished calculating probability of " << probability);
+		return probability;
 	}
 
 	int PoseCloud2D::getCellDistance(const int x, const int y)

@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   octomap_msgs
   octomap_ros
   message_generation
+  multisense_sensor_model
 )
 find_package(octomap REQUIRED)
 find_package(YamlCpp REQUIRED)
