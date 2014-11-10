@@ -26,6 +26,12 @@ namespace cylbot_mcl
 		void octreeUpdate(const boost::shared_ptr<octomap::OcTree> octree);
 
 	private:
+		double getMeasurementProbability(const geometry_msgs::Pose map_pose,
+										 const geometry_msgs::Pose pose,
+										 const pcl::PointCloud<pcl::PointXYZ>& beam_ends,
+										 const tf::Vector3 beam_start);			
+		
+	private:
 		boost::shared_ptr<octomap::OcTree> octree;
 
 		double last_sensor_update;

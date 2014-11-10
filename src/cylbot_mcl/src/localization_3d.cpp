@@ -69,7 +69,7 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_in,
 	robot_filter.filter(*pcl_robot_filtered_cloud);
 
 	ROS_DEBUG("pcl_robot_filtered_cloud size: %lu", pcl_robot_filtered_cloud->points.size());
-	
+
 	pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_map_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 	if(!tf_listener.waitForTransform(
 		   "/map",
@@ -116,12 +116,22 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_in,
 	pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_max_filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::ExtractIndices<pcl::PointXYZ> max_filter;
 	max_filter.setInputCloud(pcl_ground_filtered_cloud);
-	max_filter.setKeepOrganized(true);
 	max_filter.setNegative(true);
 	max_filter.setIndices(max_indices);
 	max_filter.filter(*pcl_max_filtered_cloud);
 
+	pcl_max_filtered_cloud->header.stamp = pcl_robot_filtered_cloud->header.stamp;
+	pcl_max_filtered_cloud->header.frame_id = "/map";
 	pcl::PointCloud<pcl::PointXYZ>::Ptr beam_ends(new pcl::PointCloud<pcl::PointXYZ>);
+	if(!tf_listener.waitForTransform(
+		   "/base_link",
+		   "/map",
+		   cloud_in->header.stamp,
+		   ros::Duration(1.0)))
+	{
+		ROS_WARN("Transform from /base_link to /map failed");
+		return;
+	}
 	pcl_ros::transformPointCloud("/base_link",
 								 cloud_in->header.stamp,
 								 *pcl_max_filtered_cloud,
@@ -237,7 +247,7 @@ int main(int argc, char** argv)
 																					boost::ref(last_velocity)));
 
 
-	octomap_sub = nh.subscribe<octomap_msgs::Octomap>("/octomap", 1, boost::bind(octomapCallback, _1, &pose_cloud));
+	octomap_sub = nh.subscribe<octomap_msgs::Octomap>("/octomap_binary", 1, boost::bind(octomapCallback, _1, &pose_cloud));
 
 	ros::Publisher pose_array_pub = nh.advertise<geometry_msgs::PoseArray>("/pose_cloud", 1);
 
