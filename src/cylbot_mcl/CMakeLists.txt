@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   cylbot_map_creator
   pcl_ros
+  octomap_msgs
+  octomap_ros
 )
 find_package(Boost REQUIRED)
 find_package(Eigen REQUIRED)
@@ -45,11 +47,14 @@ include_directories(
   include
 )
 
-add_library(cylbot_mcl src/pose_cloud.cpp)
+add_library(cylbot_mcl src/pose_cloud.cpp src/pose_cloud2d.cpp src/pose_cloud3d.cpp)
 target_link_libraries(cylbot_mcl ${catkin_LIBRARIES} ${Eigen_LIBRARIES} ${Boost_LIBRARIES})
 
 add_executable(localization_2d src/localization_2d.cpp)
 target_link_libraries(localization_2d cylbot_mcl)
+
+add_executable(localization_3d src/localization_3d.cpp)
+target_link_libraries(localization_3d cylbot_mcl)
 
 #############
 ## Testing ##

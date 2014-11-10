@@ -5,7 +5,7 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl_ros/transforms.h>
 #include <multisense_sensor_model/sensor_model.h>
-#include <cylbot_mcl/pose_cloud.h>
+#include <cylbot_mcl/pose_cloud2d.h>
 #include <string>
 #include <tf/transform_listener.h>
 #include <boost/bind.hpp>
