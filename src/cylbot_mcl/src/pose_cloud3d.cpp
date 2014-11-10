@@ -54,26 +54,29 @@ namespace cylbot_mcl
 
 		Weights pose_weights;
 		double total_weight = 0;
-		double max_weight = 0;
+		double max_weight = -std::numeric_limits<double>::max();
 
+		ROS_INFO("Starting weight calculations");
 		for(geometry_msgs::PoseArray::_poses_type::iterator pose = pose_array.poses.begin();
 			pose != pose_array.poses.end();
 			pose++)
 		{
 			double prob = getMeasurementProbability(map_pose, *pose, beam_ends, beam_start);
-			if(prob < 0)
-				continue; // ignore points which had no beam
 			pose_weights.push_back(std::make_pair(pose, prob));
 			total_weight += prob;
 
 			if(prob > max_weight)
 				max_weight = prob;
 		}
+		ROS_INFO("Finished weight calculations");
 
 		// if there was no valid sensor data
 		// then no update can be performed
 		if(pose_weights.size() == 0)
+		{
+			ROS_INFO("no pose weights were valid");
 			return;
+		}
 
 		double avg_weight = total_weight/pose_array.poses.size();
 
@@ -116,28 +119,28 @@ namespace cylbot_mcl
 				c = c + pose_weights[i].second;
 			}
 
-			if(new_sample_rand() < 1.0 - w_fast/w_slow)
-			{
-				// geometry_msgs::PoseArray randomPoses = generateUniformPoses(std::make_pair(-20.0, 20.0),
-				// 															std::make_pair(-20.0, 20.0),
-				// 															100);
-				// for(int i=0; i<randomPoses.poses.size(); i++)
-				// 	poses.push_back(randomPoses.poses[i]);
+			// if(new_sample_rand() < 1.0 - w_fast/w_slow)
+			// {
+			// 	// geometry_msgs::PoseArray randomPoses = generateUniformPoses(std::make_pair(-20.0, 20.0),
+			// 	// 															std::make_pair(-20.0, 20.0),
+			// 	// 															100);
+			// 	// for(int i=0; i<randomPoses.poses.size(); i++)
+			// 	// 	poses.push_back(randomPoses.poses[i]);
 
-				geometry_msgs::PoseWithCovarianceStamped map_pose_with_cov;
-				map_pose_with_cov.pose.pose = map_pose;
-				map_pose_with_cov.pose.covariance[0] = map_pose_with_cov.pose.covariance[7] = map_pose_with_cov.pose.covariance[35] = .001;
+			// 	geometry_msgs::PoseWithCovarianceStamped map_pose_with_cov;
+			// 	map_pose_with_cov.pose.pose = map_pose;
+			// 	map_pose_with_cov.pose.covariance[0] = map_pose_with_cov.pose.covariance[7] = map_pose_with_cov.pose.covariance[35] = .001;
 
-				geometry_msgs::PoseArray new_samples = generatePoses(map_pose_with_cov, 1);
-				for(geometry_msgs::PoseArray::_poses_type::const_iterator pose = new_samples.poses.begin();
-					pose != new_samples.poses.end();
-					pose++)
-				{
-					poses.push_back(*pose);
-				}
+			// 	geometry_msgs::PoseArray new_samples = generatePoses(map_pose_with_cov, 1);
+			// 	for(geometry_msgs::PoseArray::_poses_type::const_iterator pose = new_samples.poses.begin();
+			// 		pose != new_samples.poses.end();
+			// 		pose++)
+			// 	{
+			// 		poses.push_back(*pose);
+			// 	}
 
-			}
-			else
+			// }
+			// else
 			{
 				pose_set.insert(&(*(pose_weights[i].first)));
 				// poses.push_back(*(pose_weights[i].first));
@@ -158,7 +161,18 @@ namespace cylbot_mcl
 		// 	poses.push_back(poses[i++%poses.size()]);
 		// }
 
-		// poses.push_back(map_pose);
+			geometry_msgs::PoseWithCovarianceStamped map_pose_with_cov;
+			map_pose_with_cov.pose.pose = map_pose;
+			map_pose_with_cov.pose.covariance[0] = map_pose_with_cov.pose.covariance[7] = map_pose_with_cov.pose.covariance[35] = .001;
+
+		
+		geometry_msgs::PoseArray new_samples = generatePoses(map_pose_with_cov, 1);
+		for(geometry_msgs::PoseArray::_poses_type::const_iterator pose = new_samples.poses.begin();
+			pose != new_samples.poses.end();
+			pose++)
+		{
+			poses.push_back(*pose);
+		}
 
 		pose_array.poses = poses;		
 	}
@@ -173,7 +187,7 @@ namespace cylbot_mcl
 												  const pcl::PointCloud<pcl::PointXYZ>& beam_ends,
 												  const tf::Vector3 beam_start)
 	{
-		double probability = -1.0;
+		double probability = 0;
 
 		// construct transform from map to estimated pose
 		tf::Transform pose_transform;
@@ -184,12 +198,13 @@ namespace cylbot_mcl
 		pose_transform.setRotation(pose_rotation);
 
 		tf::Vector3 map_beam_start = pose_transform(beam_start);
-		
-		for(pcl::PointCloud<pcl::PointXYZ>::const_iterator beam_end = beam_ends.points.begin();
-			beam_end != beam_ends.points.end();
-			beam_end++)
+
+		int use_count = 0;
+#pragma omp parallel for
+		for(int i=0; i<beam_ends.points.size(); i++)
 		{
-			tf::Vector3 map_beam_end = pose_transform(tf::Vector3(beam_end->x, beam_end->y, beam_end->z));
+			pcl::PointXYZ point = beam_ends.points[i];
+			tf::Vector3 map_beam_end = pose_transform(tf::Vector3(point.x, point.y, point.z));
 			
 			double map_beam_length = map_beam_end.distance(map_beam_start);
 			tf::Vector3 beam_dir = (map_beam_end - map_beam_start).normalized();
@@ -198,27 +213,30 @@ namespace cylbot_mcl
 			octomap::point3d direction(beam_dir.getX(), beam_dir.getY(), beam_dir.getZ());
 			octomap::point3d start(map_beam_start.getX(), map_beam_start.getY(), map_beam_start.getZ());
 
+			double prob = 1.0/30.0;
 			// go 1.5 times the max range of the laser, 30 m to make sure
 			// we hit something
 			if(octree->castRay(start, direction, end, true, 1.5*30.0))
 			{
 				double raycastRange = (start - end).norm();
 				
-				double prob = model.sensor_params.measurementProbability(map_beam_length, raycastRange);
-				if(probability < 0)
-					probability = prob;
-				else
-					probability *= prob;
+				prob = model.sensor_params.measurementProbability(map_beam_length, raycastRange);
 			}
-			else
+
+#pragma omp critical
 			{
-				if(probability < 0)
-					probability = model.sensor_params.pRand(map_beam_length);
-				else
-					probability *= model.sensor_params.pRand(map_beam_length);
+				use_count++;
+				probability += log10(prob);
+
+				if(probability == 0)
+					ROS_WARN_STREAM("Probability went to 0. prob: " << prob);
 			}
+
 		}
-		
+
+		if(use_count == 0)
+			probability = -std::numeric_limits<double>::max();
+
 		return probability;
 	}
 }
