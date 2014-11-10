@@ -11,6 +11,8 @@
   <arg name="static_pan" default="true"/>
   <arg name="pan_angle" default="0.0"/>
   <arg name="use_map" default="true"/>
+  <arg name="use_localization" default="true"/>
+  <arg name="3d_map" default="false"/>
 
   <include file="$(find cylbot_gazebo)/launch/cylbot.launch">
 	<arg name="paused" value="$(arg paused)"/>
@@ -25,6 +27,8 @@
 	<arg name="static_pan" value="$(arg static_pan)"/>
 	<arg name="pan_angle" value="$(arg pan_angle)"/>
 	<arg name="use_map" value="$(arg use_map)"/>
+	<arg name="use_localization" value="$(arg use_localization)"/>
+	<arg name="3d_map" value="$(arg 3d_map)"/>
   </include>
 
   <node name="xbox_joy" pkg="joy" type="joy_node"/>

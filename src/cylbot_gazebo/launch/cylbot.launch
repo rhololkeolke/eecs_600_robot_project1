@@ -11,18 +11,35 @@
   <arg name="static_pan" default="true"/>
   <arg name="pan_angle" default="0.0"/>
   <arg name="use_map" default="true"/>
+  <arg name="use_localization" default="true"/>
+  <arg name="3d_map" default="false"/>
 
   <!-- Load the URDF into the robot_description param. This is required for RVIZ and other tools to function -->
   <param name="robot_description" command="$(find xacro)/xacro.py '$(find cylbot_description)/robots/cylbot.urdf.xacro'" />
 
   <group if="$(arg use_map)">
-	<node name="map_server" pkg="map_server" type="map_server" args="$(arg world_location)/maps/$(arg world_name)_map.yaml" output="screen"/>
-	<node name="likelihood_field_server" pkg="cylbot_map_creator" type="likelihood_field_server">
-	  <param name="field_file" type="string" value="$(arg world_location)/likelihoods/$(arg world_name)_likelihood.yaml"/>
-	</node>
-	<node name="likelihood_field_as_map" pkg="cylbot_map_creator" type="publish_likelihood_field_as_map">
-	  <param name="params_file" type="string" value="$(find multisense_sensor_model)/params/sensor_params_large_sigma.yaml"/>
-	</node>
+	<group unless="$(arg 3d_map)">
+	  <node name="map_server" pkg="map_server" type="map_server" args="$(arg world_location)/maps/$(arg world_name)_map.yaml" output="screen"/>
+	  <node name="likelihood_field_server" pkg="cylbot_map_creator" type="likelihood_field_server">
+		<param name="field_file" type="string" value="$(arg world_location)/likelihoods/$(arg world_name)_likelihood.yaml"/>
+	  </node>
+	  <node name="likelihood_field_as_map" pkg="cylbot_map_creator" type="publish_likelihood_field_as_map">
+		<param name="params_file" type="string" value="$(find multisense_sensor_model)/params/sensor_params_large_sigma.yaml"/>
+	  </node>
+
+	  <group if="$(arg use_localization)">
+		<node name="localization_2d" pkg="cylbot_mcl" type="localization_2d"/>
+	  </group>
+
+	</group>
+	<group if="$(arg 3d_map)">
+	  <node name="octomap_server" pkg="octomap_server" type="octomap_server_node" args="$(arg world_location)/octomaps/$(arg world_name)_octomap.bt"/>
+
+	  <group if="$(arg use_localization)">
+		<node name="localization_3d" pkg="cylbot_mcl" type="localization_3d"/>
+	  </group>
+
+	</group>
   </group>
 
   <!-- We resume the logic in empty_world.launch, changing only the name of the world to be launched -->
