@@ -162,9 +162,14 @@ int main(int argc, char** argv)
 	ros::NodeHandle priv_nh("~");
 	std::string sensor_params_file = "";
 	priv_nh.getParam("sensor_params_file", sensor_params_file);
-	int num_samples;
-	if(!priv_nh.getParam("num_samples", num_samples))
-		num_samples = 10000;
+	int num_global_samples;
+	if(!priv_nh.getParam("num_global_samples", num_global_samples))
+		num_global_samples = 10000;
+
+	int num_local_samples;
+	if(!priv_nh.getParam("num_local_samples", num_local_samples))
+		num_local_samples = 1000;
+	   
 
 	IntrinsicParams sensor_params;
 	if(sensor_params_file.compare("") == 0)
@@ -183,8 +188,8 @@ int main(int argc, char** argv)
 		model.alpha[i] = .01;
 	}
 
-	ROS_INFO("num_samples: %d", num_samples);
-	PoseCloud2D pose_cloud(model, num_samples);
+	ROS_INFO("num_global_samples: %d num_local_samples %d", num_global_samples, num_local_samples);
+	PoseCloud2D pose_cloud(model, num_global_samples);
 
 	ros::Subscriber laser_sub = nh.subscribe<sensor_msgs::PointCloud2>("/laser/points", 1,
 																	   boost::bind(laserCallback,
@@ -195,7 +200,7 @@ int main(int argc, char** argv)
 																							  boost::bind(initialPoseCallback,
 																										  _1,
 																										  &pose_cloud,
-																										  num_samples));
+																										  num_local_samples));
 
 	geometry_msgs::TwistStamped::ConstPtr last_velocity;
 	ros::Subscriber vel_sub = nh.subscribe<geometry_msgs::TwistStamped>("/cylbot/velocity", 100,

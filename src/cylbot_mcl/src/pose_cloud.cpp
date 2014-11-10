@@ -272,28 +272,28 @@ namespace cylbot_mcl
 				c = c + pose_weights[i].second;
 			}
 
-			if(new_sample_rand() < 1.0 - w_fast/w_slow)
-			{
-				// geometry_msgs::PoseArray randomPoses = generateUniformPoses(std::make_pair(-20.0, 20.0),
-				// 															std::make_pair(-20.0, 20.0),
-				// 															100);
-				// for(int i=0; i<randomPoses.poses.size(); i++)
-				// 	poses.push_back(randomPoses.poses[i]);
+			// if(new_sample_rand() < 1.0 - w_fast/w_slow)
+			// {
+			// 	// geometry_msgs::PoseArray randomPoses = generateUniformPoses(std::make_pair(-20.0, 20.0),
+			// 	// 															std::make_pair(-20.0, 20.0),
+			// 	// 															100);
+			// 	// for(int i=0; i<randomPoses.poses.size(); i++)
+			// 	// 	poses.push_back(randomPoses.poses[i]);
 
-				geometry_msgs::PoseWithCovarianceStamped map_pose_with_cov;
-				map_pose_with_cov.pose.pose = map_pose;
-				map_pose_with_cov.pose.covariance[0] = map_pose_with_cov.pose.covariance[7] = map_pose_with_cov.pose.covariance[35] = .001;
+			// 	geometry_msgs::PoseWithCovarianceStamped map_pose_with_cov;
+			// 	map_pose_with_cov.pose.pose = map_pose;
+			// 	map_pose_with_cov.pose.covariance[0] = map_pose_with_cov.pose.covariance[7] = map_pose_with_cov.pose.covariance[35] = .001;
 
-				geometry_msgs::PoseArray new_samples = generatePoses(map_pose_with_cov, 1);
-				for(geometry_msgs::PoseArray::_poses_type::const_iterator pose = new_samples.poses.begin();
-					pose != new_samples.poses.end();
-					pose++)
-				{
-					poses.push_back(*pose);
-				}
+			// 	geometry_msgs::PoseArray new_samples = generatePoses(map_pose_with_cov, 1);
+			// 	for(geometry_msgs::PoseArray::_poses_type::const_iterator pose = new_samples.poses.begin();
+			// 		pose != new_samples.poses.end();
+			// 		pose++)
+			// 	{
+			// 		poses.push_back(*pose);
+			// 	}
 
-			}
-			else
+			// }
+			// else
 			{
 				pose_set.insert(&(*(pose_weights[i].first)));
 				// poses.push_back(*(pose_weights[i].first));
