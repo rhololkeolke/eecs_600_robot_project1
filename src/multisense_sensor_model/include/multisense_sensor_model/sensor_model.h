@@ -39,7 +39,7 @@ namespace multisense_sensor_model
 			{
 				boost::math::normal_distribution<> dist(map_value, sigma_hit);
 
-				return boost::math::pdf(dist, sensor_value);
+				return boost::math::pdf(dist, sensor_value)/100.0;
 			}
 
 		double pShort(const double sensor_value, const double map_value)
@@ -51,7 +51,7 @@ namespace multisense_sensor_model
 
 				double eta = 1.0/(1.0 - exp(-lambda_short*map_value));
 
-				return eta*boost::math::pdf(dist, sensor_value);
+				return eta*boost::math::pdf(dist, sensor_value)/100.0;
 			}
 
 		double pMax(const double sensor_value, const double epsilon=.01)
@@ -65,7 +65,7 @@ namespace multisense_sensor_model
 			{
 				boost::math::uniform_distribution<> dist(0.0, 30.0);
 
-				return boost::math::pdf(dist, sensor_value);
+				return boost::math::pdf(dist, sensor_value)/100.0;
 			}
 
 		double zhit, zshort, zmax, zrand;

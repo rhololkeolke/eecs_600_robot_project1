@@ -34,6 +34,7 @@ namespace cylbot_mcl
 	private:
 		boost::shared_ptr<octomap::OcTree> octree;
 
+		double w_fast, w_slow;
 		double last_sensor_update;
 	};
 }

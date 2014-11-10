@@ -57,7 +57,7 @@ namespace cylbot_mcl
 
 		geometry_msgs::PoseArray getPoses();
 
-	private:
+	protected:
 		geometry_msgs::PoseArray generatePoses(const geometry_msgs::PoseWithCovarianceStamped& initial_pose, const int num_particles);
 		geometry_msgs::PoseArray generateUniformPoses(const std::pair<double, double> x_range,
 													  const std::pair<double, double> y_range,
