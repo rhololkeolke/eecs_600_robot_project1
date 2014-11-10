@@ -1,125 +1,143 @@
 #include <ros/ros.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/Pose.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl_ros/transforms.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/conditional_removal.h>
+#include <pcl/filters/passthrough.h>
 #include <multisense_sensor_model/sensor_model.h>
 #include <cylbot_mcl/pose_cloud3d.h>
 #include <string>
 #include <tf/transform_listener.h>
 #include <boost/bind.hpp>
 #include <boost/ref.hpp>
-#include <pcl/filters/extract_indices.h>
-#include <geometry_msgs/Pose.h>
 #include <octomap_msgs/Octomap.h>
 #include <octomap_msgs/conversions.h>
+#include <octomap_ros/conversions.h>
+#include <octomap/octomap.h>
+
+
 
 using namespace multisense_sensor_model;
 using namespace cylbot_mcl;
 
 ros::Subscriber octomap_sub;
 
-void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points,
+void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_in,
 				   const tf::TransformListener& tf_listener,
 				   PoseCloud3D* pose_cloud)
 {
-	// tf::StampedTransform laser_transform;
-	// if(!tf_listener.waitForTransform(
-	// 	   "/base_link",
-	// 	   "/head_hokuyo_frame",
-	// 	   laser_points->header.stamp,
-	// 	   ros::Duration(1.0)))
-	// {
-	// 	ROS_WARN("Transform from /base_link to /head_hokuyo_frame failed");
-	// 	return;
-	// }
+	tf::StampedTransform laser_transform;
+	if(!tf_listener.waitForTransform(
+		   "/map",
+		   "/head_hokuyo_frame",
+		   cloud_in->header.stamp,
+		   ros::Duration(1.0)))
+	{
+		ROS_WARN("Transform from /map to /head_hokuyo_frame failed");
+		return;
+	}
+	tf_listener.lookupTransform("/map", "/head_hokuyo_frame", cloud_in->header.stamp, laser_transform);
+	octomap::point3d laser_origin = octomap::pointTfToOctomap(laser_transform.getOrigin());
 
-	// tf_listener.lookupTransform("/base_link", "/head_hokuyo_frame", laser_points->header.stamp, laser_transform);
-	// tf::Vector3 beam_start = laser_transform.getOrigin();
+	pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_raw_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::fromROSMsg(*cloud_in, *pcl_raw_cloud);
 
-	// pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_raw_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-	// pcl::fromROSMsg(*laser_points, *pcl_raw_cloud);
+    // filter out the points on the robot
+	pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_robot_filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
-	// pcl::PointIndices::Ptr invalid_indices(new pcl::PointIndices);
-	// int i=0;
-	// for(pcl::PointCloud<pcl::PointXYZ>::const_iterator point = pcl_raw_cloud->points.begin();
-	// 	point != pcl_raw_cloud->points.end();
-	// 	point++)
-	// {
-	// 	if(point->x != point->x || point->y != point->y || point->z != point->z)
-	// 	{
-	// 		ROS_WARN("Point has a NaN value");
-	// 	}
+	pcl::ConditionOr<pcl::PointXYZ>::Ptr range_cond (new pcl::ConditionOr<pcl::PointXYZ>());
+	range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZ>::ConstPtr (
+								  new pcl::FieldComparison<pcl::PointXYZ>("x", pcl::ComparisonOps::GE, 0.25)));
+	range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZ>::ConstPtr (
+								  new pcl::FieldComparison<pcl::PointXYZ>("x", pcl::ComparisonOps::LE, -0.25)));
+	range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZ>::ConstPtr (
+								  new pcl::FieldComparison<pcl::PointXYZ>("y", pcl::ComparisonOps::GE, 0.25)));
+	range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZ>::ConstPtr (
+								  new pcl::FieldComparison<pcl::PointXYZ>("y", pcl::ComparisonOps::LE, -0.25)));
+	range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZ>::ConstPtr (
+								  new pcl::FieldComparison<pcl::PointXYZ>("z", pcl::ComparisonOps::GE, 1.2)));
+	range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZ>::ConstPtr (
+								  new pcl::FieldComparison<pcl::PointXYZ>("z", pcl::ComparisonOps::LE, -.1)));
+	pcl::ConditionalRemoval<pcl::PointXYZ> robot_filter(range_cond);
+	robot_filter.setInputCloud(pcl_raw_cloud);
+	robot_filter.setKeepOrganized(true);
+	robot_filter.filter(*pcl_robot_filtered_cloud);
 
-	// 	// calculate 3D beam length and check for max value
-	// 	double x = point->x - beam_start.x();
-	// 	double y = point->y - beam_start.y();
-	// 	double z = point->z - beam_start.z();
-	// 	double beam_length_3d = sqrt(x*x + y*y + z*z);
-	// 	if(fabs(beam_length_3d - 30.0) < .1)
-	// 	{
-	// 		invalid_indices->indices.push_back(i);
-	// 		i++;
-	// 		continue;
-	// 	}
+	ROS_DEBUG("pcl_robot_filtered_cloud size: %lu", pcl_robot_filtered_cloud->points.size());
+	
+	pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_map_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+	if(!tf_listener.waitForTransform(
+		   "/map",
+		   "/base_link",
+		   cloud_in->header.stamp,
+		   ros::Duration(1.0)))
+	{
+		ROS_WARN("Transform from /map to /base_link failed");
+		return;
+	}
+	pcl_ros::transformPointCloud("/map",
+								 cloud_in->header.stamp,
+								 *pcl_robot_filtered_cloud,
+								 "/base_link",
+								 *pcl_map_cloud,
+								 tf_listener);
 
-	// 	// check if point is in the plane (or at least close to it)
-	// 	if(point->z > .8034 || point->z < .4034)
-	// 	{
-	// 		invalid_indices->indices.push_back(i);
-	// 		i++;
-	// 		continue;
-	// 	}
+	// filter out the ground
+	pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_ground_filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PassThrough<pcl::PointXYZ> ground_filter;
+	ground_filter.setInputCloud(pcl_map_cloud);
+	ground_filter.setFilterFieldName("z");
+	ground_filter.setFilterLimits(-1, .05);
+	ground_filter.setFilterLimitsNegative(true);
+	ground_filter.filter(*pcl_ground_filtered_cloud);
 
-	// 	// check if the beam is within the robot's cylinder
-	// 	double beam_length_2d = sqrt(x*x + y*y);
-	// 	if(fabs(beam_length_2d ) < .5)
-	// 	{
-	// 		invalid_indices->indices.push_back(i);
-	// 		i++;
-	// 		continue;
-	// 	}
-	// }
+	ROS_DEBUG("pcl_ground_filtered_cloud size: %lu", pcl_ground_filtered_cloud->points.size());
 
-	// pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-	// pcl::ExtractIndices<pcl::PointXYZ> invalid_filter;
-	// invalid_filter.setInputCloud(pcl_raw_cloud);
-	// invalid_filter.setNegative(true);
-	// invalid_filter.setIndices(invalid_indices);
-	// invalid_filter.filter(*pcl_cloud);
+	// filter out the max range readings
+	pcl::PointIndices::Ptr max_indices(new pcl::PointIndices);
+	int i=0;
+	for(pcl::PointCloud<pcl::PointXYZ>::const_iterator point = pcl_ground_filtered_cloud->points.begin();
+		point != pcl_ground_filtered_cloud->points.end();
+		point++)
+	{
+		// if this point is within .03 m of the max sensor reading then we want to remove it
+		double x = point->x - laser_origin.x();
+		double y = point->y - laser_origin.y();
+		double z = point->z - laser_origin.z();
+		if(fabs(sqrt(x*x + y*y + z*z) - 30.0) < .04)
+			max_indices->indices.push_back(i);
+		i++;
+	}
+	pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_max_filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::ExtractIndices<pcl::PointXYZ> max_filter;
+	max_filter.setInputCloud(pcl_ground_filtered_cloud);
+	max_filter.setKeepOrganized(true);
+	max_filter.setNegative(true);
+	max_filter.setIndices(max_indices);
+	max_filter.filter(*pcl_max_filtered_cloud);
 
+	pcl::PointCloud<pcl::PointXYZ>::Ptr beam_ends(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl_ros::transformPointCloud("/base_link",
+								 cloud_in->header.stamp,
+								 *pcl_max_filtered_cloud,
+								 "/map",
+								 *beam_ends,
+								 tf_listener);
 
+	tf::StampedTransform map_transform;
+	tf_listener.lookupTransform("/map", "/base_link", cloud_in->header.stamp, map_transform);
 
-	// tf::StampedTransform map_transform;
-	// if(!tf_listener.waitForTransform(
-	// 	   "/map",
-	// 	   "/base_link",
-	// 	   laser_points->header.stamp,
-	// 	   ros::Duration(1.0)))
-	// {
-	// 	ROS_WARN("Transform from /map to /base_link failed");
-	// 	return;
-	// }
-	// tf_listener.lookupTransform("/map", "/base_link", laser_points->header.stamp, map_transform);
+	geometry_msgs::Pose true_pose;
+	tf::pointTFToMsg(map_transform.getOrigin(), true_pose.position);
+	tf::quaternionTFToMsg(map_transform.getRotation(), true_pose.orientation);
+	true_pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, tf::getYaw(true_pose.orientation) + 3.14159/2.0);
 
-	// geometry_msgs::Pose true_pose;
-	// tf::pointTFToMsg(map_transform.getOrigin(), true_pose.position);
-	// tf::quaternionTFToMsg(map_transform.getRotation(), true_pose.orientation);
-	// true_pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, tf::getYaw(true_pose.orientation) + 3.14159/2.0);
-
-	// pose_cloud->sensorUpdate(true_pose, *pcl_cloud, laser_points->header.stamp.toSec());
-
-	// //ROS_DEBUG("Starting true pose probability calculation");
-	// //double truePoseProb = pose_cloud->getMeasurementProbability(true_pose, true_pose, *pcl_cloud);
-	// //ROS_DEBUG_STREAM("true pose probability:" << truePoseProb);
-
-	// geometry_msgs::Pose fake_pose = true_pose;
-	// fake_pose.position.x *= 2.1;
-	// fake_pose.position.y *= 2.1;
-	// //ROS_DEBUG("Starting fake pose probability calculation");
-	// //double fakePoseProb = pose_cloud->getMeasurementProbability(true_pose, fake_pose, *pcl_cloud);
-	// //ROS_DEBUG_STREAM("fake pose probability:" << fakePoseProb);
+	pose_cloud->sensorUpdate(true_pose, *beam_ends, laser_transform.getOrigin(), cloud_in->header.stamp.toSec());
 }
 
 void initialPoseCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& initial_pose,
