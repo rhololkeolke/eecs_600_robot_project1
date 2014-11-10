@@ -23,6 +23,8 @@ namespace cylbot_mcl
 				{
 					alpha[i] = .1;
 				}
+				alpha_slow = .1;
+				alpha_fast = .5;
 			}
 
 		RobotModel_(multisense_sensor_model::IntrinsicParams params)
@@ -32,17 +34,21 @@ namespace cylbot_mcl
 				{
 					alpha[i] = .1;
 				}
+
+				alpha_slow = .1;
+				alpha_fast = .5;
 			}
 
 		multisense_sensor_model::IntrinsicParams sensor_params;
 		boost::array<double, 6> alpha;
+		double alpha_slow, alpha_fast;
 	} RobotModel;
 
 	
 	class PoseCloud2D
 	{
 	public:
-		PoseCloud2D(const RobotModel& model, 
+		PoseCloud2D(const RobotModel& model, const int num_samples=10000,
 					const cylbot_map_creator::LikelihoodField& field=cylbot_map_creator::LikelihoodField());
 		PoseCloud2D(const RobotModel& model,
 					const geometry_msgs::PoseWithCovarianceStamped& initial_pose,

@@ -23,7 +23,7 @@ namespace multisense_sensor_model
 			{
 				boost::math::normal_distribution<> distr(0, sigma_hit);
 
-				return zhit*boost::math::pdf(distr, distance) + zrand/zmax;
+				return zhit*boost::math::pdf(distr, distance)/100.0 + zrand/zmax;
 			}
 
 		double measurementProbability(const double sensor_value,

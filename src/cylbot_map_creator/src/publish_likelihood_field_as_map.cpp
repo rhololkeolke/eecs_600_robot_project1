@@ -28,7 +28,7 @@ void fieldCallback(const cylbot_map_creator::LikelihoodField::ConstPtr& field)
 			max_prob = prob;
 		if(prob < min_prob)
 			min_prob = prob;
-		nav_map.data.push_back(100-prob);
+		nav_map.data.push_back(100-prob*100);
 	}
 
 	ROS_INFO_STREAM("max prob:" << max_prob);

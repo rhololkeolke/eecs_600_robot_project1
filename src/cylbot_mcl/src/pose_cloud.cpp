@@ -14,7 +14,7 @@ namespace cylbot_mcl
 {
 	inline int round(const double a) { return int (a + 0.5); }
 	
-	PoseCloud2D::PoseCloud2D(const RobotModel& model, const cylbot_map_creator::LikelihoodField& field)
+	PoseCloud2D::PoseCloud2D(const RobotModel& model, const int num_samples, const cylbot_map_creator::LikelihoodField& field)
 	{
 		this->pose_array.header.frame_id = "/map";
 
@@ -25,11 +25,10 @@ namespace cylbot_mcl
 		last_sensor_update = 0;
 
 		w_slow = w_fast = 0;
-		alpha_slow = .1;
-		alpha_fast = 1;
 
+		ROS_INFO("num_samples: %d", num_samples);
 		pose_array.poses = generateUniformPoses(std::make_pair(-20.0, 20.0),
-												std::make_pair(-20.0, 20.0), 10000).poses;
+												std::make_pair(-20.0, 20.0), num_samples).poses;
 	}
 
 	PoseCloud2D::PoseCloud2D(const RobotModel& model,
@@ -48,11 +47,6 @@ namespace cylbot_mcl
 		last_sensor_update = 0;
 
 		w_slow = w_fast = 0;
-		alpha_slow = .1;
-		alpha_fast = 1;
-
-		pose_array.poses = generateUniformPoses(std::make_pair(-20.0, 20.0),
-												std::make_pair(-20.0, 20.0), 10000).poses;
 	}
 
 	void PoseCloud2D::resetCloud(const geometry_msgs::PoseWithCovarianceStamped& initial_pose, const int num_particles)
@@ -189,7 +183,7 @@ namespace cylbot_mcl
 		// don't perform sensor updates unless moving
 		// this is to prevent the variance from trending to 0 with probability 1
 		// see page 108 Resampling section of Probabilistic Robotics Textbook
-		if(fabs(last_cmd.linear.y) < 0.1 && fabs(last_cmd.linear.z) < 0.1)
+		if(fabs(last_cmd.linear.y) < 0.1 && fabs(last_cmd.angular.z) < 0.1)
 			return;
 
 		// update at most every 5 seconds
@@ -222,17 +216,25 @@ namespace cylbot_mcl
 			pose++)
 		{
 			double prob = getMeasurementProbability(map_pose, *pose, beam_ends);
+			if(prob < 0)
+				continue; // ignore points which had no beam
 			pose_weights.push_back(std::make_pair(pose, prob));
 			total_weight += prob;
 
 			if(prob > max_weight)
 				max_weight = prob;
 		}
+
+		// if there was no valid sensor data
+		// then we cannot perform an update
+		if(pose_weights.size() == 0)
+			return;
+		
 		//ROS_INFO_STREAM("Finished calculation of pose cloud probabilities");
 		double avg_weight = total_weight/pose_array.poses.size();
 
-		w_slow = w_slow + alpha_slow*(avg_weight - w_slow);
-		w_fast = w_fast + alpha_fast*(avg_weight - w_fast);
+		w_slow = w_slow + model.alpha_slow*(avg_weight - w_slow);
+		w_fast = w_fast + model.alpha_fast*(avg_weight - w_fast);
 		ROS_INFO_STREAM("total weight: " << total_weight);
 		ROS_INFO_STREAM("Average prob: " << total_weight/pose_array.poses.size());
 		ROS_INFO_STREAM("Max prob: " << max_weight);
@@ -270,17 +272,32 @@ namespace cylbot_mcl
 				c = c + pose_weights[i].second;
 			}
 
-			// if(new_sample_rand() < 1.0 - w_fast/w_slow)
-			// {
-			// 	poses.push_back(generateUniformPoses(std::make_pair(-20.0, 20.0),
-			// 										 std::make_pair(-20.0, 20.0),
-			// 										 1).poses[0]);
-			// }
-			// else
-			// {
+			if(new_sample_rand() < 1.0 - w_fast/w_slow)
+			{
+				// geometry_msgs::PoseArray randomPoses = generateUniformPoses(std::make_pair(-20.0, 20.0),
+				// 															std::make_pair(-20.0, 20.0),
+				// 															100);
+				// for(int i=0; i<randomPoses.poses.size(); i++)
+				// 	poses.push_back(randomPoses.poses[i]);
+
+				geometry_msgs::PoseWithCovarianceStamped map_pose_with_cov;
+				map_pose_with_cov.pose.pose = map_pose;
+				map_pose_with_cov.pose.covariance[0] = map_pose_with_cov.pose.covariance[7] = map_pose_with_cov.pose.covariance[35] = .001;
+
+				geometry_msgs::PoseArray new_samples = generatePoses(map_pose_with_cov, 1);
+				for(geometry_msgs::PoseArray::_poses_type::const_iterator pose = new_samples.poses.begin();
+					pose != new_samples.poses.end();
+					pose++)
+				{
+					poses.push_back(*pose);
+				}
+
+			}
+			else
+			{
 				pose_set.insert(&(*(pose_weights[i].first)));
-				// poses.push_back(*(pose_weights[i].first));				
-			// }
+				// poses.push_back(*(pose_weights[i].first));
+			}
 		}
 
 		for(std::set<geometry_msgs::Pose*>::const_iterator pose = pose_set.begin();
@@ -290,9 +307,12 @@ namespace cylbot_mcl
 			poses.push_back(*(*pose));
 		}
 
-		geometry_msgs::Pose rotated_map_pose = map_pose;
-		rotated_map_pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, tf::getYaw(map_pose.orientation));
-		poses.push_back(rotated_map_pose);
+		// repeat some of the points if there are only a few
+		i=0;
+		while(poses.size() < 100)
+		{
+			poses.push_back(poses[i++%poses.size()]);
+		}
 
 		pose_array.poses = poses;
 	}
@@ -311,18 +331,7 @@ namespace cylbot_mcl
 												  const geometry_msgs::Pose& pose,
 												  const pcl::PointCloud<pcl::PointXYZ>& beam_ends)
 	{
-		// double x_diff = pose.position.x - map_pose.position.x;
-		// double y_diff = pose.position.y - map_pose.position.y;
-		// double distance = sqrt(x_diff*x_diff + y_diff*y_diff);
-		// double yaw_diff = fmod(fabs(tf::getYaw(pose.orientation) - tf::getYaw(map_pose.orientation)), 3.14159/2.0);
-
-		// // will return a higher probability for poses closer to the true pose
-		// if(distance + yaw_diff == 0)
-		// 	return std::numeric_limits<double>::max();
-		// else
-		// 	return 1.0/(distance + yaw_diff);
-		
-		double probability = 1.0;
+		double probability = -1.0;
 
 		int x_origin = (int)fabs(likelihood_field.info.origin.position.x/likelihood_field.info.resolution);
 		int y_origin = (int)fabs(likelihood_field.info.origin.position.y/likelihood_field.info.resolution);
@@ -330,9 +339,9 @@ namespace cylbot_mcl
 		// construct transfrom from map to estimated pose
 		tf::Transform pose_transform;
 		pose_transform.setOrigin(tf::Vector3(pose.position.x, pose.position.y, pose.position.z));
-		 tf::Quaternion pose_rotation = tf::createQuaternionFromRPY(0, 0, tf::getYaw(map_pose.orientation) - 3.14159/2.0);
-		// tf::Quaternion pose_rotation;
-		// tf::quaternionMsgToTF(pose.orientation, pose_rotation);
+		// the pose estimates align along the y-axis, but the tf package uses the x-axis as a reference
+		// so need to rotate the pose estimates by -90 degrees back to the x-axis
+		tf::Quaternion pose_rotation = tf::createQuaternionFromRPY(0, 0, tf::getYaw(map_pose.orientation) - 3.14159/2.0);
 		pose_transform.setRotation(pose_rotation);
 
 		//ROS_INFO("Starting scan probability calculation");
@@ -340,7 +349,6 @@ namespace cylbot_mcl
 			beam_end != beam_ends.points.end();
 			beam_end++)
 		{
-
 			tf::Vector3 map_beam_end = pose_transform(tf::Vector3(beam_end->x, beam_end->y, beam_end->z));
 			
 			// convert to grid coordinates
@@ -353,12 +361,24 @@ namespace cylbot_mcl
 			// lookup failed so skip this beam
 			if(distance == -1)
 			{
-				//ROS_INFO("Failed to lookup point so ignoring point (%d, %d) -- (%d, %d)", x, y, x + x_origin, y + y_origin);
-				probability = 1.0/model.sensor_params.zmax;
+				//ROS_INFO("Failed to lookup point (%d, %d) -- (%d, %d)", x, y, x + x_origin, y + y_origin);
+
+				// assume every point not in the map has an equal probability of hit
+				// in this case inversely proportional to the probability of hitting a maximum
+				if(probability < 0)
+					probability = model.sensor_params.zmax;
+				else
+					probability *= model.sensor_params.zmax;
+
+				continue;
 			}
 			
-			double beam_prob = model.sensor_params.likelihoodProbability(distance)/100.0;
-			probability = probability*beam_prob;
+			double beam_prob = model.sensor_params.likelihoodProbability(distance);
+			if(probability < 0)
+				probability = beam_prob;
+			else
+				probability *= beam_prob;
+			
 		}
 
 		//ROS_INFO_STREAM("Finished calculating probability of " << probability);
