@@ -203,7 +203,7 @@ int main(int argc, char** argv)
 																										  num_local_samples));
 
 	geometry_msgs::TwistStamped::ConstPtr last_velocity;
-	ros::Subscriber vel_sub = nh.subscribe<geometry_msgs::TwistStamped>("/cylbot/velocity", 100,
+	ros::Subscriber vel_sub = nh.subscribe<geometry_msgs::TwistStamped>("/cylbot/velocity", 1000,
 																		boost::bind(velocityCallback,
 																					_1,
 																					&pose_cloud,
