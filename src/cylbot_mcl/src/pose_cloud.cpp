@@ -291,7 +291,7 @@ namespace cylbot_mcl
 		}
 
 		geometry_msgs::Pose rotated_map_pose = map_pose;
-		rotated_map_pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, tf::getYaw(map_pose.orientation) + 3.14159/2.0);
+		rotated_map_pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, tf::getYaw(map_pose.orientation));
 		poses.push_back(rotated_map_pose);
 
 		pose_array.poses = poses;
@@ -330,8 +330,9 @@ namespace cylbot_mcl
 		// construct transfrom from map to estimated pose
 		tf::Transform pose_transform;
 		pose_transform.setOrigin(tf::Vector3(pose.position.x, pose.position.y, pose.position.z));
-		tf::Quaternion pose_rotation;
-		tf::quaternionMsgToTF(pose.orientation, pose_rotation);
+		 tf::Quaternion pose_rotation = tf::createQuaternionFromRPY(0, 0, tf::getYaw(map_pose.orientation) - 3.14159/2.0);
+		// tf::Quaternion pose_rotation;
+		// tf::quaternionMsgToTF(pose.orientation, pose_rotation);
 		pose_transform.setRotation(pose_rotation);
 
 		//ROS_INFO("Starting scan probability calculation");

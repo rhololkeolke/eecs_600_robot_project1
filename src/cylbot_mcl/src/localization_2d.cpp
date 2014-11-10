@@ -104,6 +104,7 @@ void laserCallback(const sensor_msgs::PointCloud2::ConstPtr& laser_points,
 	geometry_msgs::Pose true_pose;
 	tf::pointTFToMsg(map_transform.getOrigin(), true_pose.position);
 	tf::quaternionTFToMsg(map_transform.getRotation(), true_pose.orientation);
+	true_pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, tf::getYaw(true_pose.orientation) + 3.14159/2.0);
 
 	pose_cloud->sensorUpdate(true_pose, *pcl_cloud, laser_points->header.stamp.toSec());
 
