@@ -112,15 +112,28 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "pose_array_test");
 	ros::NodeHandle nh;
 
-	ros::Publisher pose_array_pub = nh.advertise<geometry_msgs::PoseArray>("pose_array_test", 1);
-	ros::Subscriber initial_pose_sub = nh.subscribe<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 10, &initialPoseCallback, ros::TransportHints().tcpNoDelay(false));
-	ros::Subscriber velocity_sub = nh.subscribe<geometry_msgs::TwistStamped>("/cylbot/velocity", 1, &velocityCallback);
-
 	// initialize alpha
 	for(int i=0; i<6; i++)
 		alpha[i] = .1;
 
+	alpha[0] = .5;
+	alpha[3] = .5;
+	
+	ros::Publisher pose_array_pub = nh.advertise<geometry_msgs::PoseArray>("pose_array_test", 1);
+	//ros::Subscriber initial_pose_sub = nh.subscribe<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 10, &initialPoseCallback, ros::TransportHints().tcpNoDelay(false));
+	ros::Subscriber velocity_sub = nh.subscribe<geometry_msgs::TwistStamped>("/cylbot/velocity", 1, &velocityCallback);
+
+
 	pose_array.header.frame_id = "/map";
+
+	geometry_msgs::Pose starting_pose;
+	starting_pose.orientation.w = 1.0;
+	for(int i=0; i<1000; i++)
+	{
+		pose_array.poses.push_back(starting_pose);
+	}
+
+	pose_array_pub.publish(pose_array);
 
 	ros::Time last_time = ros::Time::now();
 	ros::Rate loop_rate(100);
@@ -134,8 +147,7 @@ int main(int argc, char** argv)
 			last_time = curr_time;
 			
 			// skip when commands are at 0
-			if(fabs(curr_vel_cmd->twist.linear.x) > 0.1 ||
-			   fabs(curr_vel_cmd->twist.linear.y) > 0.1 ||
+			if(fabs(curr_vel_cmd->twist.linear.y) > 0.1 ||
 			   fabs(curr_vel_cmd->twist.angular.z) > 0.1)
 			{
 
