@@ -59,10 +59,14 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${YAMLCPP_INCLUDE_DIR}
+  include
 )
 
 add_executable(save_plan src/save_plan.cpp)
 target_link_libraries(save_plan ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
+
+add_executable(display_plan src/display_plan.cpp)
+target_link_libraries(display_plan ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
 
 ## Declare a cpp library
 # add_library(footstep_plan
