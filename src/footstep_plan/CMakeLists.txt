@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_msgs
   message_generation
   control_msgs
+  tf
 )
 find_package(YamlCpp REQUIRED)
 
