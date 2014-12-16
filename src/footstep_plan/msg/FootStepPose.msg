@@ -1,0 +1,2 @@
+geometry_msgs/Pose left_foot
+geometry_msgs/Pose right_foot

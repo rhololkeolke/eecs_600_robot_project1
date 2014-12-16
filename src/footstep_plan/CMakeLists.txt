@@ -24,6 +24,7 @@ find_package(YamlCpp REQUIRED)
 add_message_files(
   FILES
   FootStepPlan.msg
+  FootStepPose.msg
 )
 
 ## Generate added messages and services with any dependencies listed here
