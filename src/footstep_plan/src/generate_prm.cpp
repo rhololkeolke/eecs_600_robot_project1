@@ -80,7 +80,7 @@ int main(int argc, char** argv)
 	ROS_INFO("Map y bounds: (%3.3f, %3.3f)", map_bounds.y_bounds.first, map_bounds.y_bounds.second);
 
 	ROS_INFO("Constructing a KD-Tree of the occupied map cells");
-	std::vector<float> rawOccupiedLocations;
+	std::vector<float> vecOccupiedLocations;
 	for(int j=0; j<map->info.height; j++)
 	{
 		for(int i=0; i<map->info.width; i++)
@@ -92,12 +92,15 @@ int main(int argc, char** argv)
 			float x = i*map->info.resolution + map->info.origin.position.x;
 			float y = j*map->info.resolution + map->info.origin.position.y;
 
-			rawOccupiedLocations.push_back(x);
-			rawOccupiedLocations.push_back(y);
+			vecOccupiedLocations.push_back(x);
+			vecOccupiedLocations.push_back(y);
 		}
 	}
 
-	flann::Matrix<float> occupiedLocations(&rawOccupiedLocations[0], (int)(rawOccupiedLocations.size()/2.0), 2);
+	float* rawOccupiedLocations = new float[vecOccupiedLocations.size()];
+	std::copy(vecOccupiedLocations.begin(), vecOccupiedLocations.end(), rawOccupiedLocations);
+
+	flann::Matrix<float> occupiedLocations(rawOccupiedLocations, (int)(vecOccupiedLocations.size()/2.0), 2);
 	flann::Index<flann::L2<float> > map_index(occupiedLocations, flann::KDTreeIndexParams(4));
 	map_index.buildIndex();
 
@@ -171,7 +174,7 @@ int main(int argc, char** argv)
 		float avg_y = (nodes[i/2].left_foot.position.y - nodes[i/2].right_foot.position.y)/2.0 + nodes[i/2].right_foot.position.y;
 		//float avg_yaw = (tf::getYaw(nodes[i].left_foot.orientation) + tf::getYaw(nodes[i].right_foot.orientation))/2.0;
 
-		ROS_DEBUG("node[%d] avg_x: %f avg_y: %f", i/2, avg_x, avg_y);
+		ROS_INFO("node[%d] avg_x: %f avg_y: %f", i/2, avg_x, avg_y);
 		
 		rawNodeDataset[i] = avg_x;
 		rawNodeDataset[i+1] = avg_y;
@@ -231,8 +234,11 @@ int main(int argc, char** argv)
 			tf::Vector3 path_dir = (end_point - start_point).normalize();
 			float path_length = path.length();
 
-			ROS_DEBUG("start_point (%f, %f)", start_point.getX(), start_point.getY());
-			ROS_DEBUG("end_point:  (%f, %f)", end_point.getX(), end_point.getY());
+			if((i==0 && nn_index == 4) || (i == 4 && nn_index == 0))
+			{
+				ROS_INFO("start_point (%f, %f)", start_point.getX(), start_point.getY());
+				ROS_INFO("end_point:  (%f, %f)", end_point.getX(), end_point.getY());
+			}
 
 			if(path_length <= MAX_STRIDE)
 			{
@@ -259,17 +265,21 @@ int main(int argc, char** argv)
 				continue;
 			}
 
+			ROS_INFO("Starting collision checking");
 			// the end points of the line segment to check the midpoint of
 			std::queue<std::pair<float, float> > line_segments;
 			line_segments.push(std::make_pair(0, 1.0));
-			bool collisions = false;
+			bool collisions = true;
 			flann::Matrix<int> indices(new int[1], 1, 1);
 			flann::Matrix<float> dists(new float[1], 1, 1);
 			while(!line_segments.empty())
 			{
 			 	std::pair<float, float> line_segment = line_segments.front();
 			 	if((line_segment.second - line_segment.first)*path_length < .1)
+				{
+					ROS_INFO("Collision check resolution reached");
 			 		break;
+				}
 
 			 	// get point along path using linear interpolation
 			 	float lambda = line_segment.first + (line_segment.second - line_segment.first)/2.0;
@@ -282,9 +292,15 @@ int main(int argc, char** argv)
 				map_index.knnSearch(query, indices, dists, 1, flann::SearchParams(128));
 
 				// there is a collision so stop checking this path
-				ROS_DEBUG("map_dists: %f", dists[0][0]);
+				if((i == 0 && nn_index == 4) || (i == 4 && nn_index == 0))
+				{
+					ROS_INFO("Checking collision at (%f, %f)", rawQuery[0], rawQuery[1]);
+					ROS_INFO("map_dists: %f", dists[0][0]);
+				}
 				if(dists[0][0] < .35*.35)
 				{
+//					ROS_INFO("Checking collision at (%f, %f)", rawQuery[0], rawQuery[1]);
+//					ROS_INFO("map_dists: %f", dists[0][0]);
 					collisions = true;
 					break;
 				}
@@ -300,6 +316,9 @@ int main(int argc, char** argv)
 
 			if(collisions)
 			{
+				ROS_INFO("start_point (%f, %f)", start_point.getX(), start_point.getY());
+				ROS_INFO("end_point:  (%f, %f)", end_point.getX(), end_point.getY());
+
 				ROS_INFO("Found a collision for %d closest neighbor %d of %d", j, nn_index, i);
 				continue;
 			}

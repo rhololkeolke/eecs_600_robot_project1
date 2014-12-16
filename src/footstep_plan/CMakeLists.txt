@@ -86,6 +86,9 @@ target_link_libraries(atlas_world_tf_broadcaster ${catkin_LIBRARIES} ${Boost_LIB
 add_executable(generate_prm src/generate_prm.cpp)
 target_link_libraries(generate_prm ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${YAMLCPP_LIBRARY} ${FLANN_LIBRARIES})
 
+add_executable(map_transform_test src/map_transform_test.cpp)
+target_link_libraries(map_transform_test ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+
 ## Declare a cpp library
 # add_library(footstep_plan
 #   src/${PROJECT_NAME}/footstep_plan.cpp
