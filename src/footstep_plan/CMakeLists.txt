@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(footstep_plan)
 
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 
 ## Find catkin macros and libraries
@@ -69,6 +71,9 @@ target_link_libraries(save_plan ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
 
 add_executable(display_plan src/display_plan.cpp)
 target_link_libraries(display_plan ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
+
+add_executable(display_roadmap src/display_roadmap.cpp)
+target_link_libraries(display_roadmap ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
 
 ## Declare a cpp library
 # add_library(footstep_plan

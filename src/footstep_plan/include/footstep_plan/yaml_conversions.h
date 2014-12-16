@@ -224,6 +224,8 @@ namespace YAML {
 			{
 				footstep_pose.left_foot = node["left_foot"].as<geometry_msgs::Pose>();
 				footstep_pose.right_foot = node["right_foot"].as<geometry_msgs::Pose>();
+
+				return true;
 			}
 	};
 	
