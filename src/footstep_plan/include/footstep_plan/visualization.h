@@ -107,6 +107,76 @@ namespace footstep_plan {
 		markers->markers.push_back(footstep_path);
 	}
 
+	void convertPlanToMarkers(const footstep_plan::FootStepPlan& plan,
+							  const footstep_plan::FootStepPose& start_pose,
+							  const footstep_plan::FootStepPose& end_pose,
+							  visualization_msgs::MarkerArray* markers,
+							  std::string frame_id="/map")
+	{
+		int id_offset = markers->markers.size();
+
+		visualization_msgs::Marker footstep_path;
+		footstep_path.header.frame_id = frame_id;
+		footstep_path.header.stamp = ros::Time::now();
+		footstep_path.ns = "footstep_path";
+		footstep_path.id = id_offset;
+		footstep_path.type = visualization_msgs::Marker::LINE_STRIP;
+		footstep_path.action = visualization_msgs::Marker::ADD;
+		footstep_path.scale.x = .01;
+		footstep_path.pose.orientation.w = 1.0;
+		footstep_path.color.a = .8;
+		footstep_path.color.r = 0.0;
+		footstep_path.color.g = 0.0;
+		footstep_path.color.b = 1.0;
+
+		// calculate the path line point
+		tf::Transform path_transform;
+		path_transform.setOrigin(tf::Vector3(start_pose.left_foot.position.x,
+											 start_pose.left_foot.position.y,
+											 start_pose.left_foot.position.z));
+		path_transform.setRotation(tf::Quaternion(start_pose.left_foot.orientation.x,
+												  start_pose.left_foot.orientation.y,
+												  start_pose.left_foot.orientation.z,
+												  start_pose.left_foot.orientation.w));
+		tf::Vector3 path_point = path_transform(tf::Vector3(0,-.15, 0));
+		geometry_msgs::Point geom_path_point;
+		geom_path_point.x = path_point.getX();
+		geom_path_point.y = path_point.getY();
+		geom_path_point.z = path_point.getZ();
+		footstep_path.points.push_back(geom_path_point);
+		footstep_path.colors.push_back(footstep_path.color);
+		
+		for(footstep_plan::FootStepPlan::_steps_type::const_iterator step = plan.steps.begin();
+			step != plan.steps.end();
+			step++)
+		{
+			geometry_msgs::Point path_point = convertStepToMarker(*step,
+																  markers,
+																  id_offset,
+																  frame_id);
+			footstep_path.points.push_back(path_point);
+			footstep_path.colors.push_back(footstep_path.color);
+		}
+
+		// calculate the path line point
+		path_transform.setOrigin(tf::Vector3(end_pose.left_foot.position.x,
+											 end_pose.left_foot.position.y,
+											 end_pose.left_foot.position.z));
+		path_transform.setRotation(tf::Quaternion(end_pose.left_foot.orientation.x,
+												  end_pose.left_foot.orientation.y,
+												  end_pose.left_foot.orientation.z,
+												  end_pose.left_foot.orientation.w));
+		path_point = path_transform(tf::Vector3(0,-.15, 0));
+		geom_path_point.x = path_point.getX();
+		geom_path_point.y = path_point.getY();
+		geom_path_point.z = path_point.getZ();
+		footstep_path.points.push_back(geom_path_point);
+		footstep_path.colors.push_back(footstep_path.color);
+
+		markers->markers.push_back(footstep_path);
+
+	}
+
 	void convertPoseToMarkers(const footstep_plan::FootStepPose& pose,
 							  visualization_msgs::MarkerArray* markers,
 							  std::string frame_id="/map")
@@ -120,9 +190,9 @@ namespace footstep_plan {
 		pose_marker.id = id;
 		pose_marker.type = visualization_msgs::Marker::ARROW;
 		pose_marker.action = visualization_msgs::Marker::ADD;
-		pose_marker.scale.x = .05;
-		pose_marker.scale.y = .01;
-		pose_marker.scale.z = .01;
+		pose_marker.scale.x = .24;
+		pose_marker.scale.y = .02;
+		pose_marker.scale.z = .02;
 		pose_marker.color.a = .8;
 		pose_marker.color.r = 1.0;
 		pose_marker.color.g = 1.0;
@@ -181,7 +251,13 @@ namespace footstep_plan {
 				inner_edge != outer_edge->second.end();
 				inner_edge++)
 			{
-				convertPlanToMarkers(inner_edge->second, markers, frame_id);
+				footstep_plan::RoadmapNodes::const_iterator start_node = roadmap.nodes.find(outer_edge->first);
+				footstep_plan::RoadmapNodes::const_iterator end_node = roadmap.nodes.find(inner_edge->first);
+				convertPlanToMarkers(inner_edge->second,
+									 start_node->second,
+									 end_node->second,
+									 markers,
+									 frame_id);
 			}
 		}
 	}

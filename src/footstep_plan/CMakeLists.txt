@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(footstep_plan)
 
-set(CMAKE_BUILD_TYPE RelWithDebInfo)
+#set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 
@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 find_package(YamlCpp REQUIRED)
 find_package(Boost REQUIRED)
+find_package(Flann REQUIRED)
 
 ################################################
 ## Declare ROS messages, services and actions ##
@@ -66,6 +67,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${YAMLCPP_INCLUDE_DIR}
   ${Boost_INCLUDE_DIRS}
+  ${FLANN_INCLUDE_DIRS}
   include
 )
 
@@ -80,6 +82,9 @@ target_link_libraries(display_roadmap ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
 
 add_executable(atlas_world_tf_broadcaster src/atlas_world_tf_broadcaster.cpp)
 target_link_libraries(atlas_world_tf_broadcaster ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+
+add_executable(generate_prm src/generate_prm.cpp)
+target_link_libraries(generate_prm ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${YAMLCPP_LIBRARY} ${FLANN_LIBRARIES})
 
 ## Declare a cpp library
 # add_library(footstep_plan
