@@ -15,8 +15,10 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   control_msgs
   tf
+  nav_msgs
 )
 find_package(YamlCpp REQUIRED)
+find_package(Boost REQUIRED)
 
 ################################################
 ## Declare ROS messages, services and actions ##
@@ -63,6 +65,7 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${YAMLCPP_INCLUDE_DIR}
+  ${Boost_INCLUDE_DIRS}
   include
 )
 
@@ -74,6 +77,9 @@ target_link_libraries(display_plan ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
 
 add_executable(display_roadmap src/display_roadmap.cpp)
 target_link_libraries(display_roadmap ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
+
+add_executable(atlas_world_tf_broadcaster src/atlas_world_tf_broadcaster.cpp)
+target_link_libraries(atlas_world_tf_broadcaster ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
 ## Declare a cpp library
 # add_library(footstep_plan

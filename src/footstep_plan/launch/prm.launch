@@ -1,0 +1,25 @@
+<launch>
+  <arg name="rviz" default="false"/>
+  <arg name="rqt" default="false"/>
+  <arg name="world_location" default="$(find footstep_plan)"/>
+  <arg name="map_location" default="$(find cylbot_gazebo)"/>
+  <arg name="world_name" default="gas_station"/>
+  <arg name="cheats" default="1"/>
+  
+  <include file="$(find drcsim_gazebo)/launch/atlas.launch">
+	<env name="VRC_CHEATS_ENABLED" value="$(arg cheats)"/>
+	<arg name="gzworld" default="$(arg world_location)/worlds/$(arg world_name).world"/>
+  </include>
+
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_location)/maps/$(arg world_name)_map.yaml" output="screen"/>
+  <node name="atlas_to_world" pkg="footstep_plan" type="atlas_world_tf_broadcaster"/>
+  <node name="map_to_world" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 map world 50"/>
+
+  <group if="$(arg rviz)">
+	<node name="rviz" pkg="rviz" type="rviz"/>
+  </group>
+
+  <group if="$(arg rqt)">
+	<node name="rqt" pkg="rqt" type="rqt"/>
+  </group>
+</launch>
