@@ -156,28 +156,31 @@ int main(int argc, char** argv)
 		}
 
 		nodes.push_back(footstep_pose);
+		ROS_DEBUG("original node[%d] (%f, %f)", (int)(nodes.size()-1), x_center, y_center);
 
 		delete[] indices.ptr();
 		delete[] dists.ptr();
 	}
 
 	ROS_INFO("Constructing node KD-tree");
-	float* rawNodeDataset = new float[nodes.size()*4];
-	float* rawNodeQueries = new float[nodes.size()*4];
-	for(int i=0; i<nodes.size(); i++)
+	float* rawNodeDataset = new float[nodes.size()*2];
+	float* rawNodeQueries = new float[nodes.size()*2];
+	for(int i=0; i<2*nodes.size(); i+=2)
 	{
-		float avg_x = (nodes[i].left_foot.position.x + nodes[i].right_foot.position.x)/2.0;
-		float avg_y = (nodes[i].left_foot.position.y + nodes[i].right_foot.position.y)/2.0;
-		float avg_yaw = (tf::getYaw(nodes[i].left_foot.orientation) + tf::getYaw(nodes[i].right_foot.orientation))/2.0;
+		float avg_x = (nodes[i/2].left_foot.position.x - nodes[i/2].right_foot.position.x)/2.0 + nodes[i/2].right_foot.position.x;
+		float avg_y = (nodes[i/2].left_foot.position.y - nodes[i/2].right_foot.position.y)/2.0 + nodes[i/2].right_foot.position.y;
+		//float avg_yaw = (tf::getYaw(nodes[i].left_foot.orientation) + tf::getYaw(nodes[i].right_foot.orientation))/2.0;
+
+		ROS_DEBUG("node[%d] avg_x: %f avg_y: %f", i/2, avg_x, avg_y);
 		
 		rawNodeDataset[i] = avg_x;
 		rawNodeDataset[i+1] = avg_y;
-		rawNodeDataset[i+2] = sin(avg_yaw);
-		rawNodeDataset[i+3] = cos(avg_yaw);
+		//rawNodeDataset[i+2] = sin(avg_yaw);
+		//rawNodeDataset[i+3] = cos(avg_yaw);
 		rawNodeQueries[i] = avg_x;
 		rawNodeQueries[i+1] = avg_y;
-		rawNodeQueries[i+2] = sin(avg_yaw);
-		rawNodeQueries[i+3] = cos(avg_yaw);
+		//rawNodeQueries[i+2] = sin(avg_yaw);
+		//rawNodeQueries[i+3] = cos(avg_yaw);
 	}
 
 	ROS_INFO("Performing %d nearest neighbors search", num_nn);
@@ -186,11 +189,14 @@ int main(int argc, char** argv)
 	nodeIndex.buildIndex();
 
 	flann::Matrix<float> nodeQueries(rawNodeQueries, nodes.size(), 2);
-	flann::Matrix<int> nodeIndices(new int[nodeQueries.rows*num_nn], nodeQueries.rows, num_nn);
-	flann::Matrix<float> nodeDists(new float[nodeQueries.rows*num_nn], nodeQueries.rows, num_nn);
+	// NN search will return itself and num_nn-1 others. We don't care about edges between itself
+	// so bump the nn amount up by one.
+	flann::Matrix<int> nodeIndices(new int[nodeQueries.rows*(num_nn+1)], nodeQueries.rows, num_nn+1);
+	flann::Matrix<float> nodeDists(new float[nodeQueries.rows*(num_nn+1)], nodeQueries.rows, num_nn+1);
 
-	nodeIndex.knnSearch(nodeQueries, nodeIndices, nodeDists, num_nn, flann::SearchParams(128));
+	nodeIndex.knnSearch(nodeQueries, nodeIndices, nodeDists, num_nn+1, flann::SearchParams(128));
 
+	ROS_INFO("populating roadmap nodes list");
 	footstep_plan::Roadmap roadmap;
 	for(int i=0; i<nodes.size(); i++)
 	{
@@ -203,9 +209,10 @@ int main(int argc, char** argv)
 		if(i % progressInterval == 0)
 			ROS_INFO("%d%% complete", i*10/progressInterval);
 
-		for(int j=0; j<num_nn; j++)
+		for(int j=1; j<num_nn+1; j++)
 		{
 			int nn_index = nodeIndices[i][j];
+			ROS_DEBUG("node[%d]->node[%d]", i, nn_index);
 			
 			footstep_plan::RoadmapEdges::iterator outer_edge = roadmap.edges.find(i);
 			if(outer_edge != roadmap.edges.end())
@@ -213,7 +220,7 @@ int main(int argc, char** argv)
 				footstep_plan::RoadmapInnerEdges::const_iterator inner_edge = outer_edge->second.find(nn_index);
 				if(inner_edge != outer_edge->second.end())
 				{
-					ROS_DEBUG("Edge exists between %d and %d", i, nn_index);
+					ROS_INFO("Edge exists between %d and %d", i, nn_index);
 					continue;
 				}
 			}
@@ -224,11 +231,15 @@ int main(int argc, char** argv)
 			tf::Vector3 path_dir = (end_point - start_point).normalize();
 			float path_length = path.length();
 
+			ROS_DEBUG("start_point (%f, %f)", start_point.getX(), start_point.getY());
+			ROS_DEBUG("end_point:  (%f, %f)", end_point.getX(), end_point.getY());
+
 			if(path_length <= MAX_STRIDE)
 			{
 				// found an edge
 				// in this case the two nodes can be reached in a single step
 				// so the plan will be empty
+				ROS_INFO("Close enough for empty plan edge");
 				footstep_plan::FootStepPlan plan;
 				if(outer_edge == roadmap.edges.end())
 				{
@@ -257,7 +268,7 @@ int main(int argc, char** argv)
 			while(!line_segments.empty())
 			{
 			 	std::pair<float, float> line_segment = line_segments.front();
-			 	if((line_segment.second - line_segment.first)*path_length < .175)
+			 	if((line_segment.second - line_segment.first)*path_length < .1)
 			 		break;
 
 			 	// get point along path using linear interpolation
@@ -271,6 +282,7 @@ int main(int argc, char** argv)
 				map_index.knnSearch(query, indices, dists, 1, flann::SearchParams(128));
 
 				// there is a collision so stop checking this path
+				ROS_DEBUG("map_dists: %f", dists[0][0]);
 				if(dists[0][0] < .35*.35)
 				{
 					collisions = true;
@@ -288,7 +300,7 @@ int main(int argc, char** argv)
 
 			if(collisions)
 			{
-				ROS_DEBUG("Found a collision for %d closest neighbor of %d", j, i);
+				ROS_INFO("Found a collision for %d closest neighbor %d of %d", j, nn_index, i);
 				continue;
 			}
 
@@ -299,14 +311,44 @@ int main(int argc, char** argv)
 			last_step.foot_index = 0;
 			last_step.duration = .63;
 			tf::Vector3 curr_pos = start_point + (MAX_STRIDE/2.0)*path_dir;
-			last_step.pose.position.x = curr_pos.getX();
-			last_step.pose.position.y = curr_pos.getY();
+			tf::Transform path_transform;
+			path_transform.setOrigin(curr_pos);
+			path_transform.setRotation(tf::createQuaternionFromYaw(atan2(path_dir.getY(), path_dir.getX())));
+			tf::Vector3 foot_pos = path_transform(tf::Vector3(0, .15, 0));
+			last_step.pose.position.x = foot_pos.getX();
+			last_step.pose.position.y = foot_pos.getY();
 			last_step.pose.position.z = 0;
 			last_step.pose.orientation = tf::createQuaternionMsgFromYaw(atan2(path_dir.getY(), path_dir.getX()));
 			plan.steps.push_back(last_step);
-			// while((end_point - tf::Vector3(last_step.position.x, last_step.position.y, 0)).length() > MAX_STRIDE)
-			// 	last_step.step_index++;
-			// }
+			while((end_point - tf::Vector3(last_step.pose.position.x, last_step.pose.position.y, 0)).length() > MAX_STRIDE)
+			{
+				last_step.step_index++;
+				last_step.foot_index = last_step.step_index % 2;
+				curr_pos = curr_pos + (MAX_STRIDE/2.0)*path_dir;
+				path_transform.setOrigin(curr_pos);
+				if(last_step.foot_index == 0)
+					foot_pos = path_transform(tf::Vector3(0, .15, 0));
+				else
+					foot_pos = path_transform(tf::Vector3(0, -.15, 0));
+				last_step.pose.position.x = foot_pos.getX();
+				last_step.pose.position.y = foot_pos.getY();
+				plan.steps.push_back(last_step);
+			}
+
+			if(outer_edge == roadmap.edges.end())
+			{
+				footstep_plan::RoadmapInnerEdges inner_edges;
+				inner_edges[nn_index] = plan;
+				roadmap.edges[i] = inner_edges;
+			}
+			else
+			{
+				footstep_plan::RoadmapInnerEdges::iterator inner_edge = outer_edge->second.find(nn_index);
+				if(inner_edge != outer_edge->second.end())
+				{
+					outer_edge->second[nn_index] = plan;
+				}
+			}
 		}
 	}
 	

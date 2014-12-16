@@ -85,7 +85,7 @@ namespace footstep_plan {
 		footstep_path.id = id_offset;
 		footstep_path.type = visualization_msgs::Marker::LINE_STRIP;
 		footstep_path.action = visualization_msgs::Marker::ADD;
-		footstep_path.scale.x = .01;
+		footstep_path.scale.x = .05;
 		footstep_path.pose.orientation.w = 1.0;
 		footstep_path.color.a = .8;
 		footstep_path.color.r = 0.0;
@@ -122,7 +122,7 @@ namespace footstep_plan {
 		footstep_path.id = id_offset;
 		footstep_path.type = visualization_msgs::Marker::LINE_STRIP;
 		footstep_path.action = visualization_msgs::Marker::ADD;
-		footstep_path.scale.x = .01;
+		footstep_path.scale.x = .05;
 		footstep_path.pose.orientation.w = 1.0;
 		footstep_path.color.a = .8;
 		footstep_path.color.r = 0.0;
